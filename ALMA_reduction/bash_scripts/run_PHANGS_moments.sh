@@ -29,7 +29,6 @@ sleep 5
 # Record the end time and print execution time
 end_time=$(date +%s)
 duration=$((end_time - start_time))
-#duration_minutes=$(echo "scale=2; $duration / 60" | bc)
 echo "Script execution time: $duration seconds"
 
 echo
