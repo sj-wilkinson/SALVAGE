@@ -5,7 +5,7 @@ export OBJID=$2
 
 # set up output logging file
 if [ ! -d "/arc/projects/salvage/ALMA_reduction/logs/$(date +'%Y%m%d')/" ]; then mkdir "/arc/projects/salvage/ALMA_reduction/logs/$(date +'%Y%m%d')/"; fi
-output_file="/arc/projects/salvage/ALMA_reduction/logs/$(date +'%Y%m%d')/run_download_and_unzip_${ID}_$(date +'%Y%m%d_%H%M%S').txt"
+output_file="/arc/projects/salvage/ALMA_reduction/logs/$(date +'%Y%m%d')/run_PHANGS_pipeline_${OBJID}_$(date +'%Y%m%d_%H%M%S').txt"
 exec > "$output_file" 2>&1
 
 echo

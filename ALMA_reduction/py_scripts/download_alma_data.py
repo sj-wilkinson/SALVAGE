@@ -9,7 +9,7 @@ f = '/arc/projects/salvage/ALMAxmatch/ALminer_output/SDSS-ALMA-search-Jan15-tota
 myquery = pandas.read_pickle(f)
 
 print('... Downloading with ALMiner.')
-alminer.download_data(myquery[myquery['ALMA_source_name']==NAME], fitsonly=False, dryrun=False, location=f'/arc/projects/salvage/ALMA_data/{ID}/', print_urls=False, archive_mirror='NRAO')
+alminer.download_data(myquery[myquery['ALMA_source_name']==NAME], fitsonly=False, dryrun=False, location=f'/arc/projects/salvage/ALMA_data/{ID}/{NAME}/', print_urls=False, archive_mirror='NRAO')
 
 print('Python script complete.')
 
