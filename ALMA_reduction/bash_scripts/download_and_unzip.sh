@@ -2,6 +2,7 @@
 
 export ID=$1
 export NAME=$2
+export UPATH=$3
 
 # set up output logging file
 if [ ! -d "/arc/projects/salvage/ALMA_reduction/logs/$(date +'%Y%m%d')/" ]; then mkdir "/arc/projects/salvage/ALMA_reduction/logs/$(date +'%Y%m%d')/"; fi
@@ -16,6 +17,7 @@ start_time=$(date +%s)
 # test/report environment variables
 echo ID = $ID
 echo NAME = $NAME
+echo UPATH = $UPATH
 
 #conda activate almaredux
 #pip install alminer
@@ -26,15 +28,14 @@ data_dir="/arc/projects/salvage/ALMA_data/$ID"
 
 if [ ! -d "$data_dir" ]; then
     echo "Directory for data does not exist. Creating $data_dir ..."
-    mkdir $data_dir
+    mkdir "$data_dir"
 else
     echo "Directory for data already exists."
 fi
 
 # if data already exists, delete it
 echo "Deleting data (if it already exists)..."
-cd $data_dir
-rm -rfv *.tar
+rm -rfv "$UPATH" # do I need to write an if statement for this?
 sleep 5
 
 # create temporary sub-directory for this specific ALMA source name
@@ -45,26 +46,28 @@ tmp_dir="/arc/projects/salvage/ALMA_data/$ID/$NAME/"
 # if it does, delete it and re-make, if it doesn't make it
 if [ ! -d "$tmp_dir" ]; then
     echo "Directory for data does not exist. Creating $tmp_dir ..."
-    mkdir $tmp_dir
+    mkdir "$tmp_dir"
 else
     echo "Directory for data already exists. Re-creating ..."
-    rm -rvf $tmp_dir
-    mkdir $tmp_dir
+    rm -rvf "$tmp_dir"
+    mkdir "$tmp_dir"
     
 fi
 
+# run script to download data into temporary directory
 echo "Downloading ALMA data..."
 cd /arc/projects/salvage/ALMA_reduction/py_scripts/
 python download_alma_data.py
 sleep 5
 
+# unpack the data into final location
 echo "Unzipping downloaded data..."
-cd $tmp_dir
+cd "$tmp_dir"
 for tar_file in *.tar; do
     # Check if the file is a regular file
     if [ -f "$tar_file" ]; then
         # Extract the contents of the .tar file into final location
-        tar -xf "$tar_file" -C $data_dir
+        tar -xf "$tar_file" -C "$data_dir"
         echo "Extracted: $tar_file"
     fi
 done
@@ -72,7 +75,7 @@ sleep 5
 
 echo "Deleting temporary directory and data therein ..."
 cd ..
-rm -rvf $tmp_dir
+rm -rvf "$tmp_dir"
 
 # Record the end time and print execution time
 end_time=$(date +%s)
