@@ -29,6 +29,9 @@ end_time=$(date +%s)
 duration=$((end_time - start_time))
 echo "Script execution time: $duration seconds"
 
+# make completion file
+touch "/arc/projects/salvage/ALMA_reduction/salvage_completion_files/${ID}_imaging_complete.txt"
+
 echo
 echo "Bash script complete."
 echo

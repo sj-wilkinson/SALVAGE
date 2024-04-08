@@ -11,7 +11,8 @@ is_recent_file() {
     local file_time=$(stat -c %Y "$file")
     local current_time=$(date +%s)
     local time_diff=$((current_time - file_time))
-    local threshold=$((4 * 60 * 60))  # 4 hours in seconds
+    local threshold=$((1800))  # 0.5 hours in seconds
+    #local threshold=$((14400))  # 4 hours in seconds
 
     if [ "$time_diff" -le "$threshold" ]; then
         return 0  # File is recent
@@ -51,13 +52,16 @@ echo ID = $ID
 echo PROJ = $PROJ
 echo UPATH = $UPATH
 
-#echo "Delete calibrated data if it already exists..."
+echo "Delete calibrated data if it already exists..."
+echo "rm -rvf $UPATH/calibrated/"
 rm -rf $UPATH/calibrated/
 
 # Since headless jobs do not have priority on the science platform
 # Delete all files in UPATH that have been altered in the last 4 hours
 # This should avoid scriptForPI.py building off something that is only half done
-delete_recent_files "$UPATH"
+#echo "Deleting recent files... "
+#delete_recent_files "$UPATH"
+# this is scary. We already delete /calibrated/, I think this might be deleting the MS we need...
 
 echo "Running ScriptForPI.py..."
 cd $UPATH/script/
@@ -72,6 +76,9 @@ ls $UPATH/calibrated/
 end_time=$(date +%s)
 duration=$((end_time - start_time))
 echo "Script execution time: $duration seconds"
+
+# make completion file
+touch "/arc/projects/salvage/ALMA_reduction/salvage_completion_files/${ID}_calibration_complete.txt"
 
 echo
 echo "Bash script complete."
