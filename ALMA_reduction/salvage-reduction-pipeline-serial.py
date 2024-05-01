@@ -137,7 +137,10 @@ def casa_version_to_canfar_image(version):
 
     # translation here: https://almascience.nrao.edu/processing/science-pipeline#version
 
-    if version == '6.1.1-15':
+    if version == '6.4.1.12':
+        image='images.canfar.net/casa-6/casa:6.4.1-12-pipeline'
+
+    elif version == '6.1.1-15':
         image='images.canfar.net/casa-6/casa:6.1.1-15-pipeline'
     
     elif version == '6.1.1':
@@ -164,6 +167,10 @@ def casa_version_to_canfar_image(version):
     elif version == '4.7.0':
         image='images.canfar.net/casa-4/casa:4.7.0'
 
+    elif version == '4.6.0':
+        print('WARNING: CASA v4.6.0 does not have a pipeline version, using CASA v4.7.0 instead.')
+        image='images.canfar.net/casa-4/casa:4.7.0'
+
     elif version == '4.5.3':
         image='images.canfar.net/casa-4/casa:4.5.3'
         
@@ -178,17 +185,18 @@ def casa_version_to_canfar_image(version):
         
     elif version == '4.2.2':
         image='images.canfar.net/casa-4/casa:4.2.2-pipe'
+
+    elif version == '4.2':
+        print('WARNING: CASA v4.2 does not have a pipeline version, using CASA v4.2.2 instead.')
+        image='images.canfar.net/casa-4/casa:4.2.2-pipe'
         
     else:
-        #print(f'Your CASA version ({version}) is either not supported or more recent than 6.1.1-15, defaulting to most recent: 6.5.4-9.')
-        #image = 'images.canfar.net/casa-6/casa:6.5.4-9-pipeline'
+        print(f'Your CASA version ({version}) is either not supported or more recent than 6.1.1-15, defaulting to most recent: 6.5.4-9.')
+        image = 'images.canfar.net/casa-6/casa:6.5.4-9-pipeline'
 
         # I keep receiving an error with 6.5.4-9: warnings.warn('PyFITS is deprecated, please use astropy.io.fits', let's try an earlier version?
-        print(f'Your CASA version ({version}) is either not supported or more recent than 6.1.1-15, defaulting to: 6.2.1-7.')
-        image = 'images.canfar.net/casa-6/casa:6.2.1-7-pipeline'   
-
-    if version == '6.4.1.12':
-        image='images.canfar.net/casa-6/casa:6.4.1-12-pipeline'
+        #print(f'Your CASA version ({version}) is either not supported or more recent than 6.1.1-15, defaulting to: 6.2.1-7.')
+        #image = 'images.canfar.net/casa-6/casa:6.2.1-7-pipeline'   
 
     return image
 
@@ -199,7 +207,8 @@ def casa_version_to_canfar_image(version):
 ###########################################
 
 fpath = '/arc/projects/salvage/ALMA_reduction/samples/'
-file  =  'salvage_Feb12_sample.txt'
+#file  =  'salvage_Feb12_sample.txt'
+file  =  'salvage_Feb12_sample_mrs_gt_2rp_AGN.txt'
 
 objID_sample, year_sample, name_sample, muid_sample, guid_sample, auid_sample, proj_sample = np.loadtxt(fpath+file, unpack = True, dtype = str, usecols = [0,11,12,13,14,15,16])
 z_sample, mass_sample, rpetro_sample, ra_sample, dec_sample, res_sample, mrs_sample, AL_sample, AC_sample, TP_sample = np.loadtxt(fpath+file, unpack = True, dtype = float, usecols = [1,2,3,4,5,6,7,8,9,10])
@@ -209,10 +218,19 @@ argv = sys.argv
 min_index = int(argv[-2])
 max_index = int(argv[-1])
 
-# downloads that take up ~300-500GB of disk space
-massive_downloads = ['588017703996096564', '588848900431216934', '587727177931817054' , '588848900966514994', '588848899357737008', '587727229448421420', '587741489300766802']
+# downloads that take up ~300-500GB of disk space                                                                                                                              # 587736803470540958 took up 7T in intermediate imaging...
+massive_downloads = ['588017703996096564', '588848900431216934', '587727177931817054' , '588848900966514994', '588848899357737008', '587727229448421420', '587741489300766802', '587736803470540958']
 
 rerun_targets = ['587730772799914185'] # picked a random one that should work but is raising error
+
+do_stage1 = False
+do_stage2 = False
+do_stage3 = True
+do_stage4 = True
+
+rerun_only = False
+skip_massive_downloads = True
+skip_completed = True
 
 # loop over galaxies and launch jobs
 for i in np.arange(min_index,max_index):
@@ -221,16 +239,27 @@ for i in np.arange(min_index,max_index):
     NAME = name_sample[i]
     MUID = muid_sample[i]
     PROJ = proj_sample[i]
+    Z    = z_sample[i]
+    DIST = cosmo.angular_diameter_distance(Z).value
+    RA   = ra_sample[i]
+    DEC  = dec_sample[i]
 
     # choose to only run on problem galaxies from a previous run
-    rerun_only = False
     if (ID not in rerun_targets) & rerun_only:
         continue
 
     # skip if file is known to be prohibitively large
-    skip_massive_downloads = True
     if (ID in massive_downloads) & skip_massive_downloads:
+        print('##################################################################')
         print(f'Skipping {ID} because it is known to require a lot of disk space.')
+        print('##################################################################')
+        continue
+
+    # skip if file is known to be prohibitively large
+    if os.path.exists(f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/derived/{ID}/{ID}_12m_co10_strict_mom0.fits') & skip_completed:
+        print('##############################################################################')
+        print(f'Skipping {ID} because it already has a moment 0 map from the PHANGS pipeline.')
+        print('##############################################################################')
         continue
 
     # remove completion flag files for this galaxy
@@ -243,33 +272,38 @@ for i in np.arange(min_index,max_index):
     #######################################
 
     # select appropriate resources
-    image = "images.canfar.net/skaha/astroml:latest"
+    image = "images.canfar.net/skaha/astroml:24.03"
     cmd = '/arc/projects/salvage/ALMA_reduction/bash_scripts/download_and_unzip_revert.sh'
     ram=4
     cores=2
 
-    # launch headless session on the science platform
-    session = Session()
-    session_id = session.create(
-        name  = ID,
-        image = image,
-        cores = cores,
-        ram   = ram,
-        kind  = "headless",
-        cmd   = cmd,
-        args  = f'{ID} {NAME} {PROJ}'
-    )
-    print("Sesion ID: {}".format(session_id[0]))
+    if do_stage1:
+    
+        # launch headless session on the science platform
+        session = Session()
+        session_id = session.create(
+            name  = ID,
+            image = image,
+            cores = cores,
+            ram   = ram,
+            kind  = "headless",
+            cmd   = cmd,
+            args  = f'{ID} {NAME} {PROJ}'
+        )
+        print("Sesion ID: {}".format(session_id[0]))
+    
+        # do not continue until bash script has completed
+        t = 0
+        while not os.path.exists(f'/arc/projects/salvage/ALMA_reduction/salvage_completion_files/{ID}_download_complete.txt'):
+            # check every minute
+            time.sleep(60)
+            t+=1
+            print(f'Download has not yet completed. Elapsed time: {t} min.')
+    
+        print('Download completed. Moving on to calibration.\n')
 
-    # do not continue until bash script has completed
-    i = 0
-    while not os.path.exists(f'/arc/projects/salvage/ALMA_reduction/salvage_completion_files/{ID}_download_complete.txt'):
-        # check every minute
-        time.sleep(60)
-        i+=1
-        print(f'Download has not yet completed. Elapsed time: {i} min.')
-
-    print('Download completed. Moving on to calibration.')
+    else: 
+        print('Skipping STAGE 1: DOWNLOAD AND UNZIP\n')
 
     ########################################
 
@@ -297,7 +331,7 @@ for i in np.arange(min_index,max_index):
             PATH = os.path.join(root, "member.uid___"+UID)
     if PATH == None:
         print()
-        print(f'Path to data not found. Skipping this galaxy ({ID}).')
+        print(f'Path to data not found. Skipping this galaxy ({ID}).\n')
         print()
         continue
 
@@ -305,30 +339,36 @@ for i in np.arange(min_index,max_index):
     version, calib, method = get_casa_version(PATH, UID)
     image = casa_version_to_canfar_image(version)
     print(ID, version, calib, method, image)
-        
-    # launch headless session on the science platform
-    session = Session()
-    session_id = session.create(
-        name  = ID,
-        image = image,
-        cores = cores,
-        ram   = ram,
-        kind  = "headless",
-        cmd   = cmd,
-        args  = f'{ID} {PROJ} {PATH}'
-    )
 
-    print("Sesion ID: {}".format(session_id[0]))
+    if do_stage2:
+            
+        # launch headless session on the science platform
+        session = Session()
+        session_id = session.create(
+            name  = ID,
+            image = image,
+            cores = cores,
+            ram   = ram,
+            kind  = "headless",
+            cmd   = cmd,
+            args  = f'{ID} {PROJ} {PATH}'
+        )
+    
+        print("Sesion ID: {}".format(session_id[0]))
+    
+        # do not continue until bash script has completed
+        t = 0
+        while not os.path.exists(f'/arc/projects/salvage/ALMA_reduction/salvage_completion_files/{ID}_calibration_complete.txt'):
+            # check every minute
+            time.sleep(60)
+            t+=1
+            print(f'Calibration has not yet completed. Elapsed time: {t} min.')
+    
+        print('Calibration restored. Moving on to imaging.\n')
 
-    # do not continue until bash script has completed
-    i = 0
-    while not os.path.exists(f'/arc/projects/salvage/ALMA_reduction/salvage_completion_files/{ID}_calibration_complete.txt'):
-        # check every minute
-        time.sleep(60)
-        i+=1
-        print(f'Calibration has not yet completed. Elapsed time: {i} min.')
+    else:
 
-    print('Calibration restored. Moving on to imaging.')
+        print('Skipping STAGE 2: RESTORE CALIBRATION\n')
 
     ############################################
 
@@ -369,7 +409,7 @@ for i in np.arange(min_index,max_index):
         #checking if files are missing because of bug in previous stages or this one...
         print('No MS files found in ', ms_filepath)
 
-        print('CANCEL IMAGING DUE TO MISSING FILES')
+        print('CANCEL IMAGING DUE TO MISSING FILES.\n')
         continue
 
     # check if there are visibilities for this target from another project and add on top if there is...
@@ -405,10 +445,6 @@ for i in np.arange(min_index,max_index):
     
     # initialize string
     out_str = ''
-    
-    Z    = z_sample[i]
-    DIST = cosmo.angular_diameter_distance(Z).value
-    
     out_str += f"{ID},{DIST}\n" 
     # need to accomodate other observations of the same objID?
     
@@ -438,9 +474,6 @@ for i in np.arange(min_index,max_index):
     out_str = ''
     
     # format the ra and dec's for html table
-    RA   = ra_sample[i]
-    DEC  = dec_sample[i]
-    
     c = SkyCoord(ra= RA*u.degree, dec= DEC*u.degree, frame='icrs')
     coord_str = c.to_string('hmsdms')
 
@@ -464,35 +497,42 @@ for i in np.arange(min_index,max_index):
 
     #########################################
 
-    # select appropriate resources
-    image = "images.canfar.net/casa-6/casa:6.5.6-22"
-    cmd = '/arc/projects/salvage/ALMA_reduction/bash_scripts/run_PHANGS_pipeline.sh'
-    ram=8
-    cores=2
+    if do_stage3:
+
+        # select appropriate resources
+        #image = "images.canfar.net/casa-6/casa:6.5.6-22"
+        image = "images.canfar.net/casa-6/casa:6.5.4-9-pipeline"
+        cmd = '/arc/projects/salvage/ALMA_reduction/bash_scripts/run_PHANGS_pipeline.sh'
+        ram=16
+        cores=2
+        
+        # launch headless session on the science platform
+        session = Session()
+        session_id = session.create(
+            name  = ID,
+            image = image,
+            cores = cores,
+            ram   = ram,
+            kind  = "headless",
+            cmd   = cmd,
+            args  = f'{NAME} {ID}'
+        )
     
-    # launch headless session on the science platform
-    session = Session()
-    session_id = session.create(
-        name  = ID,
-        image = image,
-        cores = cores,
-        ram   = ram,
-        kind  = "headless",
-        cmd   = cmd,
-        args  = f'{NAME} {ID}'
-    )
+        print("Sesion ID: {}".format(session_id[0]))
+    
+        # do not continue until bash script has completed
+        t = 0
+        while not os.path.exists(f'/arc/projects/salvage/ALMA_reduction/salvage_completion_files/{ID}_imaging_complete.txt'):
+            # check every minute
+            time.sleep(60)
+            t+=1
+            print(f'Imaging has not yet completed. Elapsed time: {t} min.')
+    
+        print('Imaging completed. Moving on to derived data.\n')
 
-    print("Sesion ID: {}".format(session_id[0]))
+    else:
 
-    # do not continue until bash script has completed
-    i = 0
-    while not os.path.exists(f'/arc/projects/salvage/ALMA_reduction/salvage_completion_files/{ID}_imaging_complete.txt'):
-        # check every minute
-        time.sleep(60)
-        i+=1
-        print(f'Imaging has not yet completed. Elapsed time: {i} min.')
-
-    print('Imaging completed. Moving on to derived data.')
+        print('Skipping STAGE 3: RUN PHANGS PIPELINE\n')
 
     ################################################
 
@@ -500,39 +540,45 @@ for i in np.arange(min_index,max_index):
 
     ################################################
 
-    # select appropriate resources
-    image = "images.canfar.net/skaha/astroml:latest"
-    cmd = '/arc/projects/salvage/ALMA_reduction/bash_scripts/run_PHANGS_moments.sh'
-    ram=4
-    cores=2
+    if do_stage4:
 
-    # launch headless session on the science platform
-    session = Session()
-    session_id = session.create(
-        name  = ID,
-        image = image,
-        cores = cores,
-        ram   = ram,
-        kind  = "headless",
-        cmd   = cmd,
-        args  = f'{NAME} {ID}'
-    )
+        # select appropriate resources
+        image = "images.canfar.net/skaha/astroml:latest"
+        cmd = '/arc/projects/salvage/ALMA_reduction/bash_scripts/run_PHANGS_moments.sh'
+        ram=4
+        cores=2
+    
+        # launch headless session on the science platform
+        session = Session()
+        session_id = session.create(
+            name  = ID,
+            image = image,
+            cores = cores,
+            ram   = ram,
+            kind  = "headless",
+            cmd   = cmd,
+            args  = f'{NAME} {ID}'
+        )
+    
+        print("Sesion ID: {}".format(session_id[0]))
+    
+        # do not continue until bash script has completed
+        t = 0
+        while not os.path.exists(f'/arc/projects/salvage/ALMA_reduction/salvage_completion_files/{ID}_derived_complete.txt'):
+            # check every minute
+            time.sleep(60)
+            t+=1
+            print(f'Moment maps have not yet completed. Elapsed time: {t} min.')
+    
+    
+        # wipe ALL data that is not the reduced image or derived products
+        #os.system(f'rm -rf /arc/projects/salvage/ALMA_data/{ID}/')
+    
+        print('Galaxy reduction complete. Moving on to next galaxy.\n')
 
-    print("Sesion ID: {}".format(session_id[0]))
+    else:
 
-    # do not continue until bash script has completed
-    i = 0
-    while not os.path.exists(f'/arc/projects/salvage/ALMA_reduction/salvage_completion_files/{ID}_derived_complete.txt'):
-        # check every minute
-        time.sleep(60)
-        i+=1
-        print(f'Moment maps have not yet completed. Elapsed time: {i} min.')
-
-
-    # wipe ALL data that is not the reduced image or derived products
-    os.system(f'rm -rf /arc/projects/salvage/ALMA_data/{ID}/')
-
-    print('Galaxy reduction complete. Moving on to next galaxy.')
+        print('Skipping STAGE 4: RUN PHANGS MOMENTS\n')
         
 
 
