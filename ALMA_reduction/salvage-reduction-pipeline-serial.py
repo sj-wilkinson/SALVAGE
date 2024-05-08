@@ -219,7 +219,10 @@ min_index = int(argv[-2])
 max_index = int(argv[-1])
 
 # downloads that take up ~300-500GB of disk space                                                                                                                              # 587736803470540958 took up 7T in intermediate imaging...
-massive_downloads = ['588017703996096564', '588848900431216934', '587727177931817054' , '588848900966514994', '588848899357737008', '587727229448421420', '587741489300766802', '587736803470540958']
+massive_downloads = ['588017703996096564', '588848900431216934', '587727177931817054' , '588848900966514994', '588848899357737008', '587727229448421420', '587741489300766802', '587736803470540958', '587726877264249088', '587734621630431417', '587742614559785152']
+# 587726877264249088 is a 1.4 TB download
+# 587734621630431417 is a 0.94 TB download (calibration takes forever, too)
+# 587742614559785152 is a 0.62 TB download
 
 rerun_targets = ['587730772799914185'] # picked a random one that should work but is raising error
 
@@ -411,6 +414,23 @@ for i in np.arange(min_index,max_index):
 
         print('CANCEL IMAGING DUE TO MISSING FILES.\n')
         continue
+
+    # remove .flagversions -- they seem superfluous and causing trouble
+    ms_files_keep = []
+    for ms_file_ in ms_files:
+        if ms_file_[-13:] == '.flagversions':
+            continue
+        else:
+            ms_files_keep.append(ms_file_)
+
+    print()
+    print('The following ms files were in the above directory.')
+    print(ms_files)
+    print('After removing those with .flagversions (which seem to cause trouble), the following are kept.')
+    print(ms_files_keep)
+    print()
+
+    ms_files = ms_files_keep.copy()
 
     # check if there are visibilities for this target from another project and add on top if there is...
     #init = len(np.array(objID_in_file)[np.array(objID_in_file)==ID])
