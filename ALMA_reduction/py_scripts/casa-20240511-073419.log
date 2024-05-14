@@ -1,0 +1,22 @@
+2024-05-11 07:34:20	INFO	::casa	
+2024-05-11 07:34:20	INFO	::casa	
+2024-05-11 07:34:20	INFO	::casa	
+2024-05-11 07:34:20	INFO	::casa	
+2024-05-11 07:34:21	INFO	::casa	Python version 3.8.10
+2024-05-11 07:34:21	INFO	::casa	CASA Version PIPELINE 6.5.4.9
+2024-05-11 07:34:21	INFO	::casa	
+2024-05-11 07:34:21	INFO	::casa	Telemetry log file: /arc/home/swilkinson/.casa/casastats-6.5.4.9-6e8ef2d77731-20240511-073421.log
+2024-05-11 07:34:21	INFO	::casa	Checking telemetry submission interval
+2024-05-11 07:34:21	INFO	::casa	Creating a new telemetry time stamp file./arc/home/swilkinson/.casa/telemetry-6e8ef2d77731.stamp
+2024-05-11 07:34:21	INFO	::casa	Telemetry submit interval not reached. Not submitting data.
+2024-05-11 07:34:21	INFO	::casa	Next telemetry data submission in: 6 days, 23:59:59.999166
+2024-05-11 07:34:21	INFO	::casa	
+2024-05-11 07:34:23	INFO	::casa	imported analysisUtils version $Id: analysisUtils.py,v 2.90 2023/10/04 19:39:30 thunter Exp $ from /opt/casa/analysisUtils/analysis_scripts/analysisUtils.py
+2024-05-11 07:34:23	INFO	::casa	optional configuration file config.py not found, continuing CASA startup without it
+2024-05-11 07:34:23	INFO	::casa	Using user-supplied startup.py at ~/.casa/startup.py
+2024-05-11 07:34:23	INFO	::casa	
+2024-05-11 07:34:23	INFO	::casa	Checking Measures tables in data repository sub-directory /opt/casa-6.5.4-9-pipeline-2023.1.0.124/lib/py/lib/python3.8/site-packages/casadata/__data__/geodetic
+2024-05-11 07:34:41	INFO	::casa	  IERSeop2000 (version date, last date in table (UTC)): 2024/03/09/15:00, 2024/02/08/00:00:00
+2024-05-11 07:34:45	INFO	::casa	  IERSeop97 (version date, last date in table (UTC)): 2024/03/09/15:00, 2024/02/08/00:00:00
+2024-05-11 07:34:46	INFO	::casa	  IERSpredict (version date, last date in table (UTC)): 2024/04/12/15:00, 2024/07/11/00:00:00
+2024-05-11 07:34:46	INFO	::casa	  TAI_UTC (version date, last date in table (UTC)): 2024/03/21/15:00, 2017/01/01/00:00:00

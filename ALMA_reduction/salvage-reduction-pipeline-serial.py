@@ -219,15 +219,21 @@ min_index = int(argv[-2])
 max_index = int(argv[-1])
 
 # downloads that take up ~300-500GB of disk space                                                                                                                              # 587736803470540958 took up 7T in intermediate imaging...
-massive_downloads = ['588017703996096564', '588848900431216934', '587727177931817054' , '588848900966514994', '588848899357737008', '587727229448421420', '587741489300766802', '587736803470540958', '587726877264249088', '587734621630431417', '587742614559785152']
+massive_downloads = ['588017703996096564', '588848900431216934', '587727177931817054' , '588848900966514994', '588848899357737008', '587727229448421420', '587741489300766802', '587736803470540958', '587726877264249088', '587734621630431417', '587742614559785152', '587725075528417541', '587726102556180606']#, '587742901788213295', '587726016684359773', '587732770522792028']
 # 587726877264249088 is a 1.4 TB download
 # 587734621630431417 is a 0.94 TB download (calibration takes forever, too)
 # 587742614559785152 is a 0.62 TB download
+# 587725075528417541 is a 0.43 TB download
+# 587726102556180606 is a 0.50 TB download
+# 587742901788213295 is only a 131 GB download, but balloons to 870 GB during imaging (indeed up to 1.2+ TB, if given the space)
+# 587726016684359773 is only a 141 GB download, but balloons to 1007 GB during imaging
+# 587732770522792028 is only a 141 GB download, but balloons to 968 GB during imaging
+# 587735349650391137 is only a XXX GB download, but ballons to 1.9+ TB during imaging (before implementing split)
 
 rerun_targets = ['587730772799914185'] # picked a random one that should work but is raising error
 
-do_stage1 = False
-do_stage2 = False
+do_stage1 = True
+do_stage2 = True
 do_stage3 = True
 do_stage4 = True
 
@@ -383,7 +389,7 @@ for i in np.arange(min_index,max_index):
 
     ## write function to make measurement set key for single target
     
-    ms_key_out = 'ms_file_key_salvage.txt'
+    ms_key_out = f'ms_file_key_salvage_{ID}.txt'
     ms_key_tmp = 'ms_file_key_template.txt'
     
     # get template table (formatting with no file paths)
@@ -441,8 +447,9 @@ for i in np.arange(min_index,max_index):
 
         ms_path = ms_files[j-init].replace(ms_root, '') # wipe ms_root directory so it can be added separately
         obs_num = j+1 # record different measurement sets as different observations
-    
-        out_str += f"{ID} {ID}_{obs_num} all 12m {obs_num} {ms_path}\n" 
+
+        out_str += f"{ID} {ID}_{obs_num} all 12m {obs_num} {ms_path}\n"
+        #out_str += f"{ID} {ID}_{obs_num} all 12m {obs_num} {ms_path}.split\n" 
         # need to accomodate other observations of the same objID?
 
     # replace placeholder "__DATA__" in template with formatted data
@@ -455,7 +462,7 @@ for i in np.arange(min_index,max_index):
 
     ## write function to make distance key for single target
 
-    dist_key_out = 'distance_key_salvage.txt'
+    dist_key_out = f'distance_key_salvage_{ID}.txt'
     dist_key_tmp = 'distance_key_template.txt'
     
     # get template table (formatting with no coordinates)
@@ -478,7 +485,7 @@ for i in np.arange(min_index,max_index):
 
     ## write function to make target defs key for single target
 
-    targ_key_out = 'target_definitions_salvage.txt'
+    targ_key_out = f'target_definitions_salvage_{ID}.txt'
     targ_key_tmp = 'target_definitions_template.txt'
 
     # prep for sys vel calculation
@@ -511,6 +518,25 @@ for i in np.arange(min_index,max_index):
     out.write(out_data)
     out.close()
 
+    ## generate master key file that points to these keys
+
+    master_key_out = f'master_key_salvage_{ID}.txt'
+    master_key_tmp = 'master_key_template.txt'
+
+    # get template master key
+    out = open(key_dir + master_key_tmp, 'r')
+    out_data = out.read()
+    out.close()
+    
+    # replace __OBJID__ in template with the SDSS objID for this galaxy
+    out_data = out_data.replace('__OBJID__', ID)
+
+    # write to new key file
+    out = open(key_dir + master_key_out, 'w')
+    out.write(out_data)
+    out.close()
+    
+
     #########################################
     
     ##### STAGE 3b: RUN PHANGS PIPELINE #####
@@ -535,7 +561,7 @@ for i in np.arange(min_index,max_index):
             ram   = ram,
             kind  = "headless",
             cmd   = cmd,
-            args  = f'{NAME} {ID}'
+            args  = f'{NAME} {ID} {key_dir + ms_key_out}'
         )
     
         print("Sesion ID: {}".format(session_id[0]))

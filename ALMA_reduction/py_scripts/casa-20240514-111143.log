@@ -1,0 +1,39 @@
+2024-05-14 11:11:45	INFO	::casa	
+2024-05-14 11:11:45	INFO	::casa	
+2024-05-14 11:11:45	INFO	::casa	
+2024-05-14 11:11:45	INFO	::casa	
+2024-05-14 11:11:46	INFO	::casa	Python version 3.8.10
+2024-05-14 11:11:46	INFO	::casa	CASA Version PIPELINE 6.5.4.9
+2024-05-14 11:11:46	INFO	::casa	
+2024-05-14 11:11:46	INFO	::casa	Telemetry log file: /arc/home/swilkinson/.casa/casastats-6.5.4.9-e215c6129b60-20240514-111145.log
+2024-05-14 11:11:46	INFO	::casa	Checking telemetry submission interval
+2024-05-14 11:11:46	INFO	::casa	Creating a new telemetry time stamp file./arc/home/swilkinson/.casa/telemetry-e215c6129b60.stamp
+2024-05-14 11:11:46	INFO	::casa	Telemetry submit interval not reached. Not submitting data.
+2024-05-14 11:11:46	INFO	::casa	Next telemetry data submission in: 6 days, 23:59:59.996078
+2024-05-14 11:11:46	INFO	::casa	
+2024-05-14 11:11:48	INFO	::casa	imported analysisUtils version $Id: analysisUtils.py,v 2.90 2023/10/04 19:39:30 thunter Exp $ from /opt/casa/analysisUtils/analysis_scripts/analysisUtils.py
+2024-05-14 11:11:48	INFO	::casa	optional configuration file config.py not found, continuing CASA startup without it
+2024-05-14 11:11:48	INFO	::casa	Using user-supplied startup.py at ~/.casa/startup.py
+2024-05-14 11:11:48	INFO	::casa	
+2024-05-14 11:11:48	INFO	::casa	Checking Measures tables in data repository sub-directory /opt/casa-6.5.4-9-pipeline-2023.1.0.124/lib/py/lib/python3.8/site-packages/casadata/__data__/geodetic
+2024-05-14 11:11:48	INFO	::casa	  IERSeop2000 (version date, last date in table (UTC)): 2024/03/09/15:00, 2024/02/08/00:00:00
+2024-05-14 11:11:49	INFO	::casa	  IERSeop97 (version date, last date in table (UTC)): 2024/03/09/15:00, 2024/02/08/00:00:00
+2024-05-14 11:11:49	INFO	::casa	  IERSpredict (version date, last date in table (UTC)): 2024/04/12/15:00, 2024/07/11/00:00:00
+2024-05-14 11:11:49	INFO	::casa	  TAI_UTC (version date, last date in table (UTC)): 2024/03/21/15:00, 2017/01/01/00:00:00
+2024-05-14 11:11:49	INFO	split::::casa	##########################################
+2024-05-14 11:11:49	INFO	split::::casa	##### Begin Task: split              #####
+2024-05-14 11:11:49	INFO	split::::casa	split( vis='/arc/projects/salvage/ALMA_data/588017703482228913/2015.1.00389.S/science_goal.uid___A001_X2f7_X363/group.uid___A001_X2f7_X364/member.uid___A001_X2f7_X365/calibrated/uid___A002_Xaf05a3_X6939.ms.split.cal', outputvis='/arc/projects/salvage/ALMA_data/588017703482228913/2015.1.00389.S/science_goal.uid___A001_X2f7_X363/group.uid___A001_X2f7_X364/member.uid___A001_X2f7_X365/calibrated/uid___A002_Xaf05a3_X6939.ms.split.cal.split', keepmms=True, field='AGC_9162', spw='', scan='', antenna='', correlation='', timerange='', intent='OBSERVE_TARGET*', array='', uvrange='', observation='', feed='', datacolumn='all', keepflags=False, width=1, timebin='0s', combine='' )
+2024-05-14 11:11:53	INFO	MSTransformManager::parseMsSpecParams	Input file name is /arc/projects/salvage/ALMA_data/588017703482228913/2015.1.00389.S/science_goal.uid___A001_X2f7_X363/group.uid___A001_X2f7_X364/member.uid___A001_X2f7_X365/calibrated/uid___A002_Xaf05a3_X6939.ms.split.cal
+2024-05-14 11:11:53	INFO	MSTransformManager::parseMsSpecParams	Data column is ALL
+2024-05-14 11:11:53	INFO	MSTransformManager::parseMsSpecParams	Output file name is /arc/projects/salvage/ALMA_data/588017703482228913/2015.1.00389.S/science_goal.uid___A001_X2f7_X363/group.uid___A001_X2f7_X364/member.uid___A001_X2f7_X365/calibrated/uid___A002_Xaf05a3_X6939.ms.split.cal.split
+2024-05-14 11:11:53	INFO	MSTransformManager::parseDataSelParams	field selection is AGC_9162
+2024-05-14 11:11:53	INFO	MSTransformManager::parseDataSelParams	scan intent selection is OBSERVE_TARGET*
+2024-05-14 11:11:53	INFO	MSTransformManager::colCheckInfo	Adding DATA column to output MS from input DATA column
+2024-05-14 11:11:53	INFO	MSTransformManager::initDataSelectionParams	Selected Scans Intents Ids are [2, 3]
+2024-05-14 11:11:54	INFO	MSTransformManager::initDataSelectionParams	Selected Fields Ids are [2, 3]
+2024-05-14 11:11:54	INFO	MSTransformManager::open	Select data
+2024-05-14 11:11:54	INFO	MSTransformManager::createOutputMSStructure	Create output MS structure
+2024-05-14 11:11:55	INFO	MSTransformDataHandler::makeSelection	86156 out of 198030 rows are going to be considered due to the selection criteria.
+2024-05-14 11:12:29	INFO	split::::casa	Task split complete. Start time: 2024-05-14 11:11:49.270134 End time: 2024-05-14 11:12:28.659064
+2024-05-14 11:12:29	INFO	split::::casa	##### End Task: split                #####
+2024-05-14 11:12:29	INFO	split::::casa	##########################################

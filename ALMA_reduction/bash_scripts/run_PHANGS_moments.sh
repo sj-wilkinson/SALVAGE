@@ -33,7 +33,7 @@ duration=$((end_time - start_time))
 echo "Script execution time: $duration seconds"
 
 # make completion file
-touch "/arc/projects/salvage/ALMA_reduction/salvage_completion_files/${ID}_derived_complete.txt"
+touch "/arc/projects/salvage/ALMA_reduction/salvage_completion_files/${OBJID}_derived_complete.txt"
 
 echo
 echo "Bash script complete."

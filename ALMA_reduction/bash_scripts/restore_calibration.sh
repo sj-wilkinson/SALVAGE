@@ -52,6 +52,7 @@ echo ID = $ID
 echo PROJ = $PROJ
 echo UPATH = $UPATH
 
+
 echo "Delete calibrated data if it already exists..."
 echo "rm -rvf $UPATH/calibrated/"
 rm -rf $UPATH/calibrated/
