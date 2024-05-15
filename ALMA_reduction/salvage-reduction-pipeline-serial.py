@@ -55,9 +55,9 @@ def get_casa_version(PATH, UID):
 
 
     ### if there are no .xml files, try using the casa logs ###
-    elif len(glob.glob(f'{PATH}/log/casa*.log'))>0:
+    elif len(glob.glob(f'{PATH}/log/*casa-*.log'))>0:
 
-        file_to_check = glob.glob(f'{PATH}/log/casa*.log')[0]
+        file_to_check = glob.glob(f'{PATH}/log/*casa-*.log')[0]
 
         # read in the lines of the log file ...
         with open(file_to_check, 'r') as file:
@@ -209,6 +209,7 @@ def casa_version_to_canfar_image(version):
 fpath = '/arc/projects/salvage/ALMA_reduction/samples/'
 #file  =  'salvage_Feb12_sample.txt'
 file  =  'salvage_Feb12_sample_mrs_gt_2rp_AGN.txt'
+#file  =  'salvage_Feb12_sample_mrs_gt_2rp.txt'
 
 objID_sample, year_sample, name_sample, muid_sample, guid_sample, auid_sample, proj_sample = np.loadtxt(fpath+file, unpack = True, dtype = str, usecols = [0,11,12,13,14,15,16])
 z_sample, mass_sample, rpetro_sample, ra_sample, dec_sample, res_sample, mrs_sample, AL_sample, AC_sample, TP_sample = np.loadtxt(fpath+file, unpack = True, dtype = float, usecols = [1,2,3,4,5,6,7,8,9,10])
@@ -232,13 +233,13 @@ massive_downloads = ['588017703996096564', '588848900431216934', '58772717793181
 
 rerun_targets = ['587730772799914185'] # picked a random one that should work but is raising error
 
-do_stage1 = True
+do_stage1 = False
 do_stage2 = True
 do_stage3 = True
 do_stage4 = True
 
 rerun_only = False
-skip_massive_downloads = True
+skip_massive_downloads = False
 skip_completed = True
 
 # loop over galaxies and launch jobs
