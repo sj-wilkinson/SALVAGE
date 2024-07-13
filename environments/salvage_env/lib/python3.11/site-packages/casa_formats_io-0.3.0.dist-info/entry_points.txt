@@ -1,0 +1,2 @@
+[glue.plugins]
+casa_ms_reader = casa_formats_io.glue_factory:setup

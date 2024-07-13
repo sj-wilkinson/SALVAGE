@@ -1,0 +1,33 @@
+Metadata-Version: 2.1
+Name: casa-formats-io
+Version: 0.3.0
+Summary: Dask-based reader for CASA data
+Home-page: http://casa-formats-io.readthedocs.org
+Author: Thomas Robitaille, Adam Ginsburg, and Eric Koch
+Author-email: thomas.robitaille@gmail.com
+License: LGPLv2
+Requires-Python: >=3.9
+License-File: LICENSE
+Requires-Dist: astropy >=4.0
+Requires-Dist: numpy >=1.21
+Requires-Dist: dask[array] >=2.0
+Provides-Extra: casa
+Requires-Dist: casatools >=6.2.0.12 ; extra == 'casa'
+Provides-Extra: docs
+Requires-Dist: numpydoc ; extra == 'docs'
+Requires-Dist: sphinx-automodapi ; extra == 'docs'
+Provides-Extra: test
+Requires-Dist: pytest ; extra == 'test'
+Requires-Dist: pytest-cov ; extra == 'test'
+
+casa-formats-io
+---------------
+
+A small package implementing I/O for CASA data formats - see https://casa-formats-io.readthedocs.io for more details.
+
+While developing this package, we made use of the https://github.com/casacore/casacore package to better understand
+the file format and have re-used some of the data class names. Therefore, since some parts of casa-formats-io may
+be considered translations of casacore into Python, we license casa-formats-io under the same LGPL license as casacore.
+
+
+casa-formats-io supports python versions >=3.9.

@@ -189,6 +189,8 @@ def casa_version_to_canfar_image(version):
     elif version == '4.2':
         print('WARNING: CASA v4.2 does not have a pipeline version, using CASA v4.2.2 instead.')
         image='images.canfar.net/casa-4/casa:4.2.2-pipe'
+        #print('WARNING: I am trialling using true CASA 4.2.0, no pipeline.')
+        #image='images.canfar.net/casa-4/casa:4.2.0'
         
     else:
         print(f'Your CASA version ({version}) is either not supported or more recent than 6.1.1-15, defaulting to most recent: 6.5.4-9.')
@@ -197,6 +199,7 @@ def casa_version_to_canfar_image(version):
         # I keep receiving an error with 6.5.4-9: warnings.warn('PyFITS is deprecated, please use astropy.io.fits', let's try an earlier version?
         #print(f'Your CASA version ({version}) is either not supported or more recent than 6.1.1-15, defaulting to: 6.2.1-7.')
         #image = 'images.canfar.net/casa-6/casa:6.2.1-7-pipeline'   
+        #image = "images.canfar.net/casa-6/casa:6.4.1-12-pipeline"
 
     return image
 
@@ -206,13 +209,36 @@ def casa_version_to_canfar_image(version):
 
 ###########################################
 
-fpath = '/arc/projects/salvage/ALMA_reduction/samples/'
+#fpath = '/arc/projects/salvage/ALMA_reduction/samples/'
 #file  =  'salvage_Feb12_sample.txt'
-file  =  'salvage_Feb12_sample_mrs_gt_2rp_AGN.txt'
+#file  =  'salvage_Feb12_sample_mrs_gt_2rp_AGN.txt'
 #file  =  'salvage_Feb12_sample_mrs_gt_2rp.txt'
+#file = 'salvage-Jun26-sample_mrs-gt-2rp_qa2-pass_no-inf-dups.txt'
 
-objID_sample, year_sample, name_sample, muid_sample, guid_sample, auid_sample, proj_sample = np.loadtxt(fpath+file, unpack = True, dtype = str, usecols = [0,11,12,13,14,15,16])
-z_sample, mass_sample, rpetro_sample, ra_sample, dec_sample, res_sample, mrs_sample, AL_sample, AC_sample, TP_sample = np.loadtxt(fpath+file, unpack = True, dtype = float, usecols = [1,2,3,4,5,6,7,8,9,10])
+#objID_sample, year_sample, name_sample, muid_sample, guid_sample, auid_sample, proj_sample = np.loadtxt(fpath+file, unpack = True, dtype = str, usecols = [0,11,12,13,14,15,16])
+#z_sample, mass_sample, rpetro_sample, ra_sample, dec_sample, res_sample, mrs_sample, AL_sample, AC_sample, TP_sample = np.loadtxt(fpath+file, unpack = True, dtype = float, usecols = [1,2,3,4,5,6,7,8,9,10])
+
+fpath = '/arc/projects/salvage/ALMA_reduction/samples/'
+file  =  'salvage-AGN-July8-sample_match-lt-4rp_mrs-gt-2rp_qa2-pass_no-inf-dups.txt'
+
+objID_sample, year_sample, muid_sample, proj_sample, name_sample = np.loadtxt(fpath+file, unpack = True, dtype = str, usecols = [0,9,10,11,12])
+z_sample, mass_sample, rpetro_sample, ra_sample, dec_sample, res_sample, mrs_sample, sens_sample = np.loadtxt(fpath+file, unpack = True, dtype = float, usecols = [1,2,3,4,5,6,7,8])
+K03, K01, WISE, LERG = np.loadtxt(fpath+file, unpack = True, dtype = bool, usecols = [13,14,15,16])
+AGN = K03|WISE|LERG
+
+objID_sample = objID_sample[AGN]
+z_sample = z_sample[AGN]
+mass_sample = mass_sample[AGN]
+rpetro_sample = rpetro_sample[AGN]
+ra_sample = ra_sample[AGN]
+dec_sample = dec_sample[AGN]
+res_sample = res_sample[AGN]
+mrs_sample = mrs_sample[AGN]
+sens_sample = sens_sample[AGN]
+year_sample = year_sample[AGN]
+muid_sample =  muid_sample[AGN]
+proj_sample = proj_sample[AGN]
+name_sample = name_sample[AGN]
 
 # galaxies to reduce in this run
 argv = sys.argv
@@ -231,16 +257,18 @@ massive_downloads = ['588017703996096564', '588848900431216934', '58772717793181
 # 587732770522792028 is only a 141 GB download, but balloons to 968 GB during imaging
 # 587735349650391137 is only a XXX GB download, but ballons to 1.9+ TB during imaging (before implementing split)
 
-rerun_targets = ['587730772799914185'] # picked a random one that should work but is raising error
+rerun_targets = ['588017992295972989'] # galaxy with central non-detection...
 
-do_stage1 = False
+do_stage1 = True
 do_stage2 = True
 do_stage3 = True
 do_stage4 = True
 
 rerun_only = False
-skip_massive_downloads = False
+skip_massive_downloads = True
 skip_completed = True
+
+wipe_downloads = False
 
 # loop over galaxies and launch jobs
 for i in np.arange(min_index,max_index):
@@ -265,12 +293,20 @@ for i in np.arange(min_index,max_index):
         print('##################################################################')
         continue
 
-    # skip if file is known to be prohibitively large
+    # skip if SDSS object already has a PHANGS moment 0 map
     if os.path.exists(f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/derived/{ID}/{ID}_12m_co10_strict_mom0.fits') & skip_completed:
         print('##############################################################################')
         print(f'Skipping {ID} because it already has a moment 0 map from the PHANGS pipeline.')
         print('##############################################################################')
         continue
+
+
+        #if wipe_downloads:
+        #
+        #    print(f'Wiping downloads, accordingly.')
+        #    os.system('')
+        
+        #    continue
 
     # remove completion flag files for this galaxy
     os.system(f'rm -rf /arc/projects/salvage/ALMA_reduction/salvage_completion_files/{ID}_*_complete.txt')
@@ -548,7 +584,8 @@ for i in np.arange(min_index,max_index):
 
         # select appropriate resources
         #image = "images.canfar.net/casa-6/casa:6.5.6-22"
-        image = "images.canfar.net/casa-6/casa:6.5.4-9-pipeline"
+        #image = "images.canfar.net/casa-6/casa:6.5.4-9-pipeline"
+        image = "images.canfar.net/casa-6/casa:6.4.1-12-pipeline"
         cmd = '/arc/projects/salvage/ALMA_reduction/bash_scripts/run_PHANGS_pipeline.sh'
         ram=16
         cores=2
@@ -590,7 +627,7 @@ for i in np.arange(min_index,max_index):
     if do_stage4:
 
         # select appropriate resources
-        image = "images.canfar.net/skaha/astroml:latest"
+        image = "images.canfar.net/skaha/astroml:24.03"
         cmd = '/arc/projects/salvage/ALMA_reduction/bash_scripts/run_PHANGS_moments.sh'
         ram=4
         cores=2
