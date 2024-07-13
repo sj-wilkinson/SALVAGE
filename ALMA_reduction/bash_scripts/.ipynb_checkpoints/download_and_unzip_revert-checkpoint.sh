@@ -19,6 +19,9 @@ echo ID = $ID
 echo NAME = $NAME
 echo PROJ = $PROJ
 
+# activate virtual environment
+source /arc/projects/salvage/environments/salvage_env/bin/activate
+
 # if data already exists, delete it
 echo "Deleting data (if it already exists)..."
 echo "rm -rf /arc/projects/salvage/ALMA_data/$ID/$PROJ/"
@@ -87,3 +90,5 @@ echo
 # it hasn't been working... try again?
 # make completion file (allows for running in serial)
 touch "/arc/projects/salvage/ALMA_reduction/salvage_completion_files/${ID}_download_complete.txt"
+
+deactivate

@@ -19,6 +19,9 @@ echo ID = $ID
 echo NAME = $NAME
 echo PROJ = $PROJ
 
+# activate virtual environment
+source /arc/projects/salvage/environments/salvage_env/bin/activate
+
 # if data already exists, delete it
 echo "Deleting data (if it already exists)..."
 echo "rm -rf /arc/projects/salvage/ALMA_data/$ID/$PROJ/"
@@ -97,3 +100,5 @@ echo "Script execution time: $duration seconds"
 echo
 echo "Bash script complete."
 echo
+
+deactivate
