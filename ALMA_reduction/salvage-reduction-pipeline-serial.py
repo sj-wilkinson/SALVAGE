@@ -305,7 +305,7 @@ for i in np.arange(min_index,max_index):
     # skip early cycles, as they may not be able to be pipeline calibrated
     if (float(year)<=2013) & skip_early_cycles:
         print('##############################################################################')
-        print(f'Skipping {ID} because it already has a moment 0 map from the PHANGS pipeline.')
+        print(f'Skipping {ID} because it is unlikely to be pipeline calibrated.')
         print('##############################################################################')
         continue
 
