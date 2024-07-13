@@ -267,6 +267,7 @@ do_stage4 = True
 rerun_only = False
 skip_massive_downloads = True
 skip_completed = True
+skip_early_cycles = True
 
 wipe_downloads = False
 
@@ -281,6 +282,7 @@ for i in np.arange(min_index,max_index):
     DIST = cosmo.angular_diameter_distance(Z).value
     RA   = ra_sample[i]
     DEC  = dec_sample[i]
+    YEAR = year_sample[i]
 
     # choose to only run on problem galaxies from a previous run
     if (ID not in rerun_targets) & rerun_only:
@@ -295,6 +297,13 @@ for i in np.arange(min_index,max_index):
 
     # skip if SDSS object already has a PHANGS moment 0 map
     if os.path.exists(f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/derived/{ID}/{ID}_12m_co10_strict_mom0.fits') & skip_completed:
+        print('##############################################################################')
+        print(f'Skipping {ID} because it already has a moment 0 map from the PHANGS pipeline.')
+        print('##############################################################################')
+        continue
+
+    # skip early cycles, as they may not be able to be pipeline calibrated
+    if (float(year)<=2013) & skip_early_cycles:
         print('##############################################################################')
         print(f'Skipping {ID} because it already has a moment 0 map from the PHANGS pipeline.')
         print('##############################################################################')
