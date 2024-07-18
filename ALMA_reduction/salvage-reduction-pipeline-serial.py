@@ -203,6 +203,35 @@ def casa_version_to_canfar_image(version):
 
     return image
 
+
+def get_path_to_data(ID, PROJ, MUID):
+
+    '''
+    Navigate through the directories within the project to get to the data.
+    Knowing the path ahead of time is almost impossible to do reliably, so just search.
+    '''
+
+    # in some cases the MUID is a number I think?
+    try:
+        UID =  MUID.split('/')[2] + '_' + MUID.split('/')[3] + '_' + MUID.split('/')[4]
+    except:
+        print('MUID is in the wrong format.')
+        print(UID, type(MUID))
+        return None, None
+
+    # search all directories in the ALMA project folder for the relevant data
+    PATH = None
+    for root, dirs, files in os.walk(f"/arc/projects/salvage/ALMA_data/{ID}/{PROJ}/"):
+        if "member.uid___"+UID in dirs:
+            PATH = os.path.join(root, "member.uid___"+UID)
+    
+    if PATH == None:
+        print()
+        print(f'Path to data not found ({ID}).\n')
+        print()
+
+    return PATH, UID
+
 ###########################################
 
 #### STAGE 0: READ IN SAMPLE TO REDUCE ####
@@ -226,19 +255,19 @@ z_sample, mass_sample, rpetro_sample, ra_sample, dec_sample, res_sample, mrs_sam
 K03, K01, WISE, LERG = np.loadtxt(fpath+file, unpack = True, dtype = bool, usecols = [13,14,15,16])
 AGN = K03|WISE|LERG
 
-objID_sample = objID_sample[AGN]
-z_sample = z_sample[AGN]
-mass_sample = mass_sample[AGN]
-rpetro_sample = rpetro_sample[AGN]
-ra_sample = ra_sample[AGN]
-dec_sample = dec_sample[AGN]
-res_sample = res_sample[AGN]
-mrs_sample = mrs_sample[AGN]
-sens_sample = sens_sample[AGN]
-year_sample = year_sample[AGN]
-muid_sample =  muid_sample[AGN]
-proj_sample = proj_sample[AGN]
-name_sample = name_sample[AGN]
+#objID_sample = objID_sample[AGN]
+#z_sample = z_sample[AGN]
+#mass_sample = mass_sample[AGN]
+#rpetro_sample = rpetro_sample[AGN]
+#ra_sample = ra_sample[AGN]
+#dec_sample = dec_sample[AGN]
+#res_sample = res_sample[AGN]
+#mrs_sample = mrs_sample[AGN]
+#sens_sample = sens_sample[AGN]
+#year_sample = year_sample[AGN]
+#muid_sample =  muid_sample[AGN]
+#proj_sample = proj_sample[AGN]
+#name_sample = name_sample[AGN]
 
 # galaxies to reduce in this run
 argv = sys.argv
@@ -246,8 +275,8 @@ min_index = int(argv[-2])
 max_index = int(argv[-1])
 
 # downloads that take up ~300-500GB of disk space                                                                                                                              # 587736803470540958 took up 7T in intermediate imaging...
-massive_downloads = ['588017703996096564', '588848900431216934', '587727177931817054' , '588848900966514994', '588848899357737008', '587727229448421420', '587741489300766802', '587736803470540958', '587726877264249088', '587734621630431417', '587742614559785152', '587725075528417541', '587726102556180606']#, '587742901788213295', '587726016684359773', '587732770522792028']
-# 587726877264249088 is a 1.4 TB download
+massive_downloads = ['588017703996096564', '588848900431216934', '587727177931817054' , '588848900966514994', '588848899357737008', '587727229448421420', '587741489300766802', '587736803470540958', '587726877264249088', '587734621630431417', '587742614559785152', '587725075528417541', '587726102556180606', '587726877264249088']
+# 587726877264249088 is a 1.4 TB download (ACTUALLY 0.7 TB download, that was an overestimate for sure)
 # 587734621630431417 is a 0.94 TB download (calibration takes forever, too)
 # 587742614559785152 is a 0.62 TB download
 # 587725075528417541 is a 0.43 TB download
@@ -258,6 +287,7 @@ massive_downloads = ['588017703996096564', '588848900431216934', '58772717793181
 # 587735349650391137 is only a XXX GB download, but ballons to 1.9+ TB during imaging (before implementing split)
 
 rerun_targets = ['588017992295972989'] # galaxy with central non-detection...
+rerun_targets = ['587726015069421736']
 
 do_stage1 = True
 do_stage2 = True
@@ -269,7 +299,7 @@ skip_massive_downloads = True
 skip_completed = True
 skip_early_cycles = True
 
-wipe_downloads = False
+wipe_downloads = True
 
 # loop over galaxies and launch jobs
 for i in np.arange(min_index,max_index):
@@ -300,7 +330,19 @@ for i in np.arange(min_index,max_index):
         print('##############################################################################')
         print(f'Skipping {ID} because it already has a moment 0 map from the PHANGS pipeline.')
         print('##############################################################################')
-        continue
+
+        if wipe_downloads:
+        
+            print('Wiping downloads, accordingly.')
+            print(f'rm -rfv /arc/projects/salvage/ALMA_data/{ID}/*.tar')
+            os.system(f'rm -rfv /arc/projects/salvage/ALMA_data/{ID}/*.tar')
+            os.system(f'rm -rfv /arc/projects/salvage/ALMA_data/{ID}/*.pickle')
+
+            PATH, UID = get_path_to_data(ID, PROJ, MUID)
+
+            if PATH != None:
+
+                os.system(f'rm -rfv {PATH}/raw/*')
 
     # skip early cycles, as they may not be able to be pipeline calibrated
     if (float(YEAR)<=2013) & skip_early_cycles:
@@ -309,13 +351,6 @@ for i in np.arange(min_index,max_index):
         print('##############################################################################')
         continue
 
-
-        #if wipe_downloads:
-        #
-        #    print(f'Wiping downloads, accordingly.')
-        #    os.system('')
-        
-        #    continue
 
     # remove completion flag files for this galaxy
     os.system(f'rm -rf /arc/projects/salvage/ALMA_reduction/salvage_completion_files/{ID}_*_complete.txt')
@@ -368,7 +403,7 @@ for i in np.arange(min_index,max_index):
 
     # select appropriate resources
     cmd = '/arc/projects/salvage/ALMA_reduction/bash_scripts/restore_calibration.sh'
-    ram=8
+    ram=12
     cores=2
 
     # in some cases the MUID is a number I think?
@@ -551,7 +586,7 @@ for i in np.arange(min_index,max_index):
     coord_str = c.to_string('hmsdms')
 
     sys_vel = (restfreq/(1+Z)).to(u.km / u.s, equivalencies=freq_to_vel).value
-    velwidth = 1000
+    velwidth = 1200
 
     out_str += f"{ID} {coord_str} {sys_vel} {velwidth}\n" 
     # need to accomodate other observations of the same objID?
