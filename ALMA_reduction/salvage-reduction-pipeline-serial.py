@@ -76,6 +76,28 @@ def get_casa_version(PATH, UID):
                 version = convert_casa_version_name(version)
                 method = 'CASA logs'
 
+    ### if there are no casa logs, try using the casapy logs ###
+    elif len(glob.glob(f'{PATH}/log/casapy*.log'))>0:
+
+        file_to_check = glob.glob(f'{PATH}/log/*casa-*.log')[0]
+
+        # read in the lines of the log file ...
+        with open(file_to_check, 'r') as file:
+            content = file.readlines()
+
+        # search through the lines for the casa version name
+        for line in content:
+
+            split_line = line.split('CASA Version')
+
+            # if the current line was split by the above text, it must be present
+            if len(split_line)>1:
+
+                # extract casa version from line
+                version = split_line[1].split(' ')[1].split('-')[0]
+                version = convert_casa_version_name(version)
+                method = 'casapy logs'
+
     ### if there are no .xml files or casa log files, try searching in scriptForImaging.py for their casa version check ###
     elif len(glob.glob(f'{PATH}/script/*scriptForImaging.py'))>0:
 
