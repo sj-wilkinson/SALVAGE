@@ -356,7 +356,7 @@ do_stage2 = True
 do_stage3 = True
 do_stage4 = True
 
-rerun_only = True
+rerun_only = False
 skip_massive_downloads = True
 skip_completed = True
 skip_early_cycles = True
@@ -567,10 +567,12 @@ for i in np.arange(min_index,max_index):
         print('CANCEL IMAGING DUE TO MISSING FILES.\n')
         continue
 
-    # remove .flagversions -- they seem superfluous and causing trouble
+    # remove .flagversions (and .ampli_inf) -- they seem superfluous and causing trouble
     ms_files_keep = []
     for ms_file_ in ms_files:
         if ms_file_[-13:] == '.flagversions':
+            continue
+        elif ms_file_[-10:] == '.ampli_inf':
             continue
         else:
             ms_files_keep.append(ms_file_)
