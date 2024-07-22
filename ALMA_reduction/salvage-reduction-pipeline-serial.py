@@ -79,7 +79,7 @@ def get_casa_version(PATH, UID):
     ### if there are no casa logs, try using the casapy logs ###
     elif len(glob.glob(f'{PATH}/log/casapy*.log'))>0:
 
-        file_to_check = glob.glob(f'{PATH}/log/*casa-*.log')[0]
+        file_to_check = glob.glob(f'{PATH}/log/casapy*.log')[0]
 
         # read in the lines of the log file ...
         with open(file_to_check, 'r') as file:
@@ -97,6 +97,41 @@ def get_casa_version(PATH, UID):
                 version = split_line[1].split(' ')[1].split('-')[0]
                 version = convert_casa_version_name(version)
                 method = 'casapy logs'
+
+
+    ### include the case where logs have been zipped ###
+    elif len(glob.glob(f'{PATH}/log/*.log.tgz'))>0:
+
+        file_to_unzip = glob.glob(f'{PATH}/log/*.log.tgz')[0]
+
+        print(f'CASA logs are zipped. Unzipping {file_to_unzip}')
+
+        os.system(f'tar -xzf {file_to_unzip}')
+
+        if len(glob.glob(f'{PATH}/log/*casa-*.log'))>0:
+
+            file_to_check = glob.glob(f'{PATH}/log/*casa-*.log')[0]
+
+        elif len(glob.glob(f'{PATH}/log/casapy*.log'))>0:
+
+            file_to_check = glob.glob(f'{PATH}/log/casapy*.log')[0]
+
+        # read in the lines of the log file ...
+        with open(file_to_check, 'r') as file:
+            content = file.readlines()
+
+        # search through the lines for the casa version name
+        for line in content:
+
+            split_line = line.split('CASA Version')
+
+            # if the current line was split by the above text, it must be present
+            if len(split_line)>1:
+
+                # extract casa version from line
+                version = split_line[1].split(' ')[1].split('-')[0]
+                version = convert_casa_version_name(version)
+                method = 'zipped casa logs'
 
     ### if there are no .xml files or casa log files, try searching in scriptForImaging.py for their casa version check ###
     elif len(glob.glob(f'{PATH}/script/*scriptForImaging.py'))>0:
@@ -184,6 +219,10 @@ def casa_version_to_canfar_image(version):
         image='images.canfar.net/casa-5/casa:5.1.1-5'
         
     elif version == '4.7.2':
+        image='images.canfar.net/casa-4/casa:4.7.2'
+
+    elif version == '4.7.1':
+        print('WARNING: CASA v4.7.1 does not have a suggested version for restoring calibrations, using CASA v4.7.2 instead.')
         image='images.canfar.net/casa-4/casa:4.7.2'
         
     elif version == '4.7.0':
@@ -310,13 +349,14 @@ massive_downloads = ['588017703996096564', '588848900431216934', '58772717793181
 
 rerun_targets = ['588017992295972989'] # galaxy with central non-detection...
 rerun_targets = ['587726015069421736']
+rerun_targets = ['587726877262086322', '587726031176138762', '587726015069421743'] # unzip, unzip, rerun (hoping calibrations will work for these this time)
 
 do_stage1 = True
 do_stage2 = True
 do_stage3 = True
 do_stage4 = True
 
-rerun_only = False
+rerun_only = True
 skip_massive_downloads = True
 skip_completed = True
 skip_early_cycles = True
@@ -356,15 +396,18 @@ for i in np.arange(min_index,max_index):
         if wipe_downloads:
         
             print('Wiping downloads, accordingly.')
-            print(f'rm -rfv /arc/projects/salvage/ALMA_data/{ID}/*.tar')
-            os.system(f'rm -rfv /arc/projects/salvage/ALMA_data/{ID}/*.tar')
-            os.system(f'rm -rfv /arc/projects/salvage/ALMA_data/{ID}/*.pickle')
+            print(f'rm -rf /arc/projects/salvage/ALMA_data/{ID}/*.tar')
+            os.system(f'rm -rf /arc/projects/salvage/ALMA_data/{ID}/*.tar')
+            os.system(f'rm -rf /arc/projects/salvage/ALMA_data/{ID}/*.pickle')
 
             PATH, UID = get_path_to_data(ID, PROJ, MUID)
 
             if PATH != None:
 
-                os.system(f'rm -rfv {PATH}/raw/*')
+                os.system(f'rm -rf {PATH}/raw/*')
+                os.system(f'rm -rf {PATH}/calibrated/working/*')
+
+        continue
 
     # skip early cycles, as they may not be able to be pipeline calibrated
     if (float(YEAR)<=2013) & skip_early_cycles:
