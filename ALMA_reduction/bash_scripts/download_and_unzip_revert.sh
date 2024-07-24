@@ -25,9 +25,10 @@ source /arc/projects/salvage/environments/salvage_env/bin/activate
 # if data already exists, delete it
 echo "Deleting data (if it already exists)..."
 echo "rm -rf /arc/projects/salvage/ALMA_data/$ID/$PROJ/"
-rm -rf "/arc/projects/salvage/ALMA_data/${ID}/${PROJ}/" # do I need to write an if statement for this?
-echo "rm -rf /arc/projects/salvage/ALMA_data/${ID}/*.pickle"
-rm -rf "/arc/projects/salvage/ALMA_data/${ID}/*.pickle"
+rm -rf "/arc/projects/salvage/ALMA_data/${ID}/${PROJ}/*"
+rm -rvf "/arc/projects/salvage/ALMA_data/${ID}/${PROJ}/"
+echo "rm -rf /arc/projects/salvage/ALMA_data/$ID/*.pickle"
+rm -rvf "/arc/projects/salvage/ALMA_data/$ID/*.pickle"
 sleep 5
 
 # check if final location for data (indexed by objID) exists
@@ -87,7 +88,6 @@ echo
 echo "Bash script complete."
 echo
 
-# it hasn't been working... try again?
 # make completion file (allows for running in serial)
 touch "/arc/projects/salvage/ALMA_reduction/salvage_completion_files/${ID}_download_complete.txt"
 
