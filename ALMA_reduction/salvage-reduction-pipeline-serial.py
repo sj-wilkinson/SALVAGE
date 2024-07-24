@@ -106,7 +106,8 @@ def get_casa_version(PATH, UID):
 
         print(f'CASA logs are zipped. Unzipping {file_to_unzip}')
 
-        os.system(f'tar -xzf {file_to_unzip}')
+        os.system(f'tar -xzf {file_to_unzip} -C {PATH}/log/')
+        time.sleep(10)
 
         if len(glob.glob(f'{PATH}/log/*casa-*.log'))>0:
 
@@ -195,7 +196,8 @@ def casa_version_to_canfar_image(version):
     # translation here: https://almascience.nrao.edu/processing/science-pipeline#version
 
     if version == '6.4.1.12':
-        image='images.canfar.net/casa-6/casa:6.4.1-12-pipeline'
+        #image='images.canfar.net/casa-6/casa:6.4.1-12-pipeline'
+        image = 'images.canfar.net/casa-6/casa:6.5.4-9-pipeline'
 
     elif version == '6.1.1-15':
         image='images.canfar.net/casa-6/casa:6.1.1-15-pipeline'
@@ -226,7 +228,8 @@ def casa_version_to_canfar_image(version):
         image='images.canfar.net/casa-4/casa:4.7.2'
         
     elif version == '4.7.0':
-        image='images.canfar.net/casa-4/casa:4.7.0'
+        image='images.canfar.net/casa-4/casa:4.7.2'
+        #image='images.canfar.net/casa-4/casa:4.7.0'
 
     elif version == '4.6.0':
         print('WARNING: CASA v4.6.0 does not have a pipeline version, using CASA v4.7.0 instead.')
@@ -350,8 +353,9 @@ massive_downloads = ['588017703996096564', '588848900431216934', '58772717793181
 rerun_targets = ['588017992295972989'] # galaxy with central non-detection...
 rerun_targets = ['587726015069421736']
 rerun_targets = ['587726877262086322', '587726031176138762', '587726015069421743'] # unzip, unzip, rerun (hoping calibrations will work for these this time)
+rerun_targets = ['587726015069421743'] # replace 4.7.0 with 4.7.2
 
-do_stage1 = True
+do_stage1 = False
 do_stage2 = True
 do_stage3 = True
 do_stage4 = True
@@ -366,7 +370,7 @@ wipe_downloads = True
 # loop over galaxies and launch jobs
 for i in np.arange(min_index,max_index):
 
-    ID = objID_sample[i]
+    ID   = objID_sample[i]
     NAME = name_sample[i]
     MUID = muid_sample[i]
     PROJ = proj_sample[i]
@@ -382,6 +386,7 @@ for i in np.arange(min_index,max_index):
 
     # skip if file is known to be prohibitively large
     if (ID in massive_downloads) & skip_massive_downloads:
+        
         print('##################################################################')
         print(f'Skipping {ID} because it is known to require a lot of disk space.')
         print('##################################################################')
@@ -389,6 +394,7 @@ for i in np.arange(min_index,max_index):
 
     # skip if SDSS object already has a PHANGS moment 0 map
     if os.path.exists(f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/derived/{ID}/{ID}_12m_co10_strict_mom0.fits') & skip_completed:
+        
         print('##############################################################################')
         print(f'Skipping {ID} because it already has a moment 0 map from the PHANGS pipeline.')
         print('##############################################################################')
@@ -774,8 +780,20 @@ for i in np.arange(min_index,max_index):
     else:
 
         print('Skipping STAGE 4: RUN PHANGS MOMENTS\n')
-        
 
+
+    # if moment maps were generated, wipe superfluous data
+    if os.path.exists(f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/derived/{ID}/{ID}_12m_co10_strict_mom0.fits') & wipe_downloads:
+        
+        print('#######################################################################')
+        print(f'{ID} was successful, deleting superfluous data.')
+        print('#######################################################################')
+
+        os.system(f'rm -rf /arc/projects/salvage/ALMA_data/{ID}/*.tar')
+        os.system(f'rm -rf /arc/projects/salvage/ALMA_data/{ID}/*.pickle')
+        os.system(f'rm -rf {PATH}/raw/*')
+        os.system(f'rm -rf {PATH}/calibrated/working/*')
+        
 
 
 
