@@ -338,30 +338,25 @@ argv = sys.argv
 min_index = int(argv[-2])
 max_index = int(argv[-1])
 
-# downloads that take up ~300-500GB of disk space                                                                                                                              # 587736803470540958 took up 7T in intermediate imaging...
-massive_downloads = ['588017703996096564', '588848900431216934', '587727177931817054' , '588848900966514994', '588848899357737008', '587727229448421420', '587741489300766802', '587736803470540958', '587726877264249088', '587734621630431417', '587742614559785152', '587725075528417541', '587726102556180606', '587726877264249088']
+# downloads that take up 500+ GB of disk space                                                                                                        # 587736803470540958 took up 7T in intermediate imaging...
+massive_downloads = ['588017703996096564', '587727177931817054' , '588848900966514994', '588848899357737008', '587727229448421420', '587741489300766802', '587736803470540958', '587726877264249088', '587734621630431417', '587742614559785152']
 # 587726877264249088 is a 1.4 TB download (ACTUALLY 0.7 TB download, that was an overestimate for sure)
 # 587734621630431417 is a 0.94 TB download (calibration takes forever, too)
 # 587742614559785152 is a 0.62 TB download
-# 587725075528417541 is a 0.43 TB download
-# 587726102556180606 is a 0.50 TB download
-# 587742901788213295 is only a 131 GB download, but balloons to 870 GB during imaging (indeed up to 1.2+ TB, if given the space)
-# 587726016684359773 is only a 141 GB download, but balloons to 1007 GB during imaging
-# 587732770522792028 is only a 141 GB download, but balloons to 968 GB during imaging
-# 587735349650391137 is only a XXX GB download, but ballons to 1.9+ TB during imaging (before implementing split)
 
 rerun_targets = ['588017992295972989'] # galaxy with central non-detection...
 rerun_targets = ['587726015069421736']
 rerun_targets = ['587726877262086322', '587726031176138762', '587726015069421743'] # unzip, unzip, rerun (hoping calibrations will work for these this time)
 rerun_targets = ['587726015069421743'] # replace 4.7.0 with 4.7.2
+rerun_targets = ['588848899391750403', '588848899928490158', '588848900465950856'] #project 2017.1.00025 needs file names changed, 3rd is something unrelated
 
-do_stage1 = False
+do_stage1 = True
 do_stage2 = True
 do_stage3 = True
 do_stage4 = True
 
 rerun_only = False
-skip_massive_downloads = True
+skip_massive_downloads = False
 skip_completed = True
 skip_early_cycles = True
 
@@ -399,7 +394,8 @@ for i in np.arange(min_index,max_index):
         print(f'Skipping {ID} because it already has a moment 0 map from the PHANGS pipeline.')
         print('##############################################################################')
 
-        if wipe_downloads:
+                            # don't wipe the calibrated MS's supplied by the help desk!
+        if wipe_downloads & (float(YEAR)>2013):
         
             print('Wiping downloads, accordingly.')
             print(f'rm -rf /arc/projects/salvage/ALMA_data/{ID}/*.tar')
@@ -422,6 +418,16 @@ for i in np.arange(min_index,max_index):
         print('##############################################################################')
         continue
 
+    # allow early cycles to run through the pipeline, but make sure download and calibration is skipped...
+    if (float(YEAR)<=2013):
+
+        print('##############################################################################')
+        print(f'{ID} is from an early cycle and was calibrated by the ALMA Help Desk.')
+        print('##############################################################################')
+
+        do_stage1 = False
+        do_stage2 = False
+        
 
     # remove completion flag files for this galaxy
     os.system(f'rm -rf /arc/projects/salvage/ALMA_reduction/salvage_completion_files/{ID}_*_complete.txt')
@@ -474,7 +480,8 @@ for i in np.arange(min_index,max_index):
 
     # select appropriate resources
     cmd = '/arc/projects/salvage/ALMA_reduction/bash_scripts/restore_calibration.sh'
-    ram=12
+    #ram=12
+    ram=8
     cores=2
 
     # in some cases the MUID is a number I think?
