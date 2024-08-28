@@ -272,10 +272,16 @@ def get_path_to_data(ID, PROJ, MUID):
 
     '''
     Navigate through the directories within the project to get to the data.
-    Knowing the path ahead of time is almost impossible to do reliably, so just search.
+    Knowing the path ahead of time is almost impossible to do reliably, so 
+    just search starting from directory holding all data for target.
+
+    In the newest iteration, I include the possibility of data being calibrated
+    measurement sets from the ALMA Help Desk. In such a case, there is no complex
+    directory structure, just the calibrated measurement set.
     '''
 
-    # in some cases the MUID is a number I think?
+    # in some cases the MUID is given as a number, not a string, this was my work-around
+    # I wonder now if this is no longer needed...
     try:
         UID =  MUID.split('/')[2] + '_' + MUID.split('/')[3] + '_' + MUID.split('/')[4]
     except:
@@ -285,9 +291,14 @@ def get_path_to_data(ID, PROJ, MUID):
 
     # search all directories in the ALMA project folder for the relevant data
     PATH = None
-    for root, dirs, files in os.walk(f"/arc/projects/salvage/ALMA_data/{ID}/{PROJ}/"):
+    
+    for root, dirs, files in os.walk(f"/arc/projects/salvage/ALMA_data/{ID}/"):
+        
         if "member.uid___"+UID in dirs:
             PATH = os.path.join(root, "member.uid___"+UID)
+
+        if "calibrated_final.ms" in dirs:
+            PATH = f"/arc/projects/salvage/ALMA_data/{ID}/"
     
     if PATH == None:
         print()
@@ -302,38 +313,13 @@ def get_path_to_data(ID, PROJ, MUID):
 
 ###########################################
 
-#fpath = '/arc/projects/salvage/ALMA_reduction/samples/'
-#file  =  'salvage_Feb12_sample.txt'
-#file  =  'salvage_Feb12_sample_mrs_gt_2rp_AGN.txt'
-#file  =  'salvage_Feb12_sample_mrs_gt_2rp.txt'
-#file = 'salvage-Jun26-sample_mrs-gt-2rp_qa2-pass_no-inf-dups.txt'
-
-#objID_sample, year_sample, name_sample, muid_sample, guid_sample, auid_sample, proj_sample = np.loadtxt(fpath+file, unpack = True, dtype = str, usecols = [0,11,12,13,14,15,16])
-#z_sample, mass_sample, rpetro_sample, ra_sample, dec_sample, res_sample, mrs_sample, AL_sample, AC_sample, TP_sample = np.loadtxt(fpath+file, unpack = True, dtype = float, usecols = [1,2,3,4,5,6,7,8,9,10])
-
 fpath = '/arc/projects/salvage/ALMA_reduction/samples/'
-file  =  'salvage-AGN-July8-sample_match-lt-4rp_mrs-gt-2rp_qa2-pass_no-inf-dups.txt'
+file  =  'salvage-AGN-Aug26-sample_match-lt-4rp_mrs-gt-2rp_qa2-pass_no-inf-dups.txt'
 
 objID_sample, year_sample, muid_sample, proj_sample, name_sample = np.loadtxt(fpath+file, unpack = True, dtype = str, usecols = [0,9,10,11,12])
 z_sample, mass_sample, rpetro_sample, ra_sample, dec_sample, res_sample, mrs_sample, sens_sample = np.loadtxt(fpath+file, unpack = True, dtype = float, usecols = [1,2,3,4,5,6,7,8])
-K03, K01, WISE, LERG = np.loadtxt(fpath+file, unpack = True, dtype = bool, usecols = [13,14,15,16])
-AGN = K03|WISE|LERG
 
-#objID_sample = objID_sample[AGN]
-#z_sample = z_sample[AGN]
-#mass_sample = mass_sample[AGN]
-#rpetro_sample = rpetro_sample[AGN]
-#ra_sample = ra_sample[AGN]
-#dec_sample = dec_sample[AGN]
-#res_sample = res_sample[AGN]
-#mrs_sample = mrs_sample[AGN]
-#sens_sample = sens_sample[AGN]
-#year_sample = year_sample[AGN]
-#muid_sample =  muid_sample[AGN]
-#proj_sample = proj_sample[AGN]
-#name_sample = name_sample[AGN]
-
-# galaxies to reduce in this run
+# galaxies to reduce in this run are given by inputs from the user
 argv = sys.argv
 min_index = int(argv[-2])
 max_index = int(argv[-1])
@@ -344,21 +330,37 @@ massive_downloads = ['588017703996096564', '587727177931817054' , '5888489009665
 # 587734621630431417 is a 0.94 TB download (calibration takes forever, too)
 # 587742614559785152 is a 0.62 TB download
 
+# updated list (Aug22)
+massive_downloads = ['587726877262086322', '587734621630431417', '587739407875113205', '587742062148911209', '587726877264249088', '587742615097442546']
+# 587726877262086322; reading 1.6 TB
+# 587734621630431417; reading 0.94 TB
+# 587739407875113205; reading 0.55 TB
+# 587742062148911209; reading 0.62 TB
+# 587726877264249088; reading 1.8 TB
+# 587742615097442546; reading 0.54 TB
+
+
 rerun_targets = ['588017992295972989'] # galaxy with central non-detection...
-rerun_targets = ['587726015069421736']
 rerun_targets = ['587726877262086322', '587726031176138762', '587726015069421743'] # unzip, unzip, rerun (hoping calibrations will work for these this time)
 rerun_targets = ['587726015069421743'] # replace 4.7.0 with 4.7.2
-rerun_targets = ['588848899391750403', '588848899928490158', '588848900465950856'] #project 2017.1.00025 needs file names changed, 3rd is something unrelated
+rerun_targets = ['587722982815236212', '587726032767025441', '588848898841051249'] #2012.1.01080.S
+rerun_targets = ['587726877262086322'] # re-running with 32 GB of RAM
+#rerun_targets = ['587727944034091201'] # the rest of 2018.1.01852.S is complete, try this again
+#rerun_targets = ['587729776375562308'] # the only target from 2016.1.01269.S, try this again (I think I messed this one up, try again later?)
+#rerun_targets = ['587727943490797666', '588848900966514994'] # two targets remaining in 2016.1.00329.S, 4994 was just a timeout error in the download... try again?
+#rerun_targets = ['587726100411121941'] # files not where script expects, copied and re-running...
+#rerun_targets = ['588848900966514994', '587729776375562308', '587726015069421743', '587727944034091201', '587726102556180606']
+#rerun_targets = ['588848899895853247', '588848900429185386', '588848900429185433'] # 2013 project, newly unpacked tar files...
 
-do_stage1 = True
+do_stage1 = False
 do_stage2 = True
 do_stage3 = True
 do_stage4 = True
 
-rerun_only = False
+rerun_only = True
 skip_massive_downloads = False
 skip_completed = True
-skip_early_cycles = True
+skip_early_cycles = False
 
 wipe_downloads = True
 
@@ -421,9 +423,10 @@ for i in np.arange(min_index,max_index):
     # allow early cycles to run through the pipeline, but make sure download and calibration is skipped...
     if (float(YEAR)<=2013):
 
-        print('##############################################################################')
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print(f'{ID} is from an early cycle and was calibrated by the ALMA Help Desk.')
-        print('##############################################################################')
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        print()
 
         do_stage1 = False
         do_stage2 = False
@@ -441,7 +444,7 @@ for i in np.arange(min_index,max_index):
     # select appropriate resources
     image = "images.canfar.net/skaha/astroml:24.03"
     cmd = '/arc/projects/salvage/ALMA_reduction/bash_scripts/download_and_unzip_revert.sh'
-    ram=4
+    ram=2
     cores=2
 
     if do_stage1:
@@ -484,19 +487,9 @@ for i in np.arange(min_index,max_index):
     ram=8
     cores=2
 
-    # in some cases the MUID is a number I think?
-    try:
-        UID =  MUID.split('/')[2] + '_' + MUID.split('/')[3] + '_' + MUID.split('/')[4]
-    except:
-        print('MUID is in the wrong format.')
-        print(UID, type(MUID))
-        continue
-
-    # search all directories in the ALMA project folder for the relevant data
-    PATH = None
-    for root, dirs, files in os.walk(f"/arc/projects/salvage/ALMA_data/{ID}/{PROJ}/"):
-        if "member.uid___"+UID in dirs:
-            PATH = os.path.join(root, "member.uid___"+UID)
+    # identify file path to data
+    PATH, UID = get_path_to_data(ID, PROJ, MUID)
+    
     if PATH == None:
         print()
         print(f'Path to data not found. Skipping this galaxy ({ID}).\n')
@@ -566,7 +559,9 @@ for i in np.arange(min_index,max_index):
     # prep file path for PHANGS-ALMA pipeline
     ms_root = '/arc/projects/salvage/ALMA_data/'
     ms_filepath = PATH.replace(ms_root, '') # wipe ms_root directory so it can be added separately
-    ms_filepath += '/calibrated/' # add calibrated on the end so that it points to the calibrated data
+
+    if float(YEAR) > 2013:
+        ms_filepath += '/calibrated/' # add calibrated on the end so that it points to the calibrated data
 
     # until I discover more nuance, take all measurement set files from this directory and let PHANGS deal with them
     ms_files = glob.glob(ms_root + ms_filepath + '*.ms*')
@@ -711,7 +706,7 @@ for i in np.arange(min_index,max_index):
         #image = "images.canfar.net/casa-6/casa:6.5.4-9-pipeline"
         image = "images.canfar.net/casa-6/casa:6.4.1-12-pipeline"
         cmd = '/arc/projects/salvage/ALMA_reduction/bash_scripts/run_PHANGS_pipeline.sh'
-        ram=16
+        ram=32
         cores=2
         
         # launch headless session on the science platform
@@ -777,10 +772,6 @@ for i in np.arange(min_index,max_index):
             time.sleep(60)
             t+=1
             print(f'Moment maps have not yet completed. Elapsed time: {t} min.')
-    
-    
-        # wipe ALL data that is not the reduced image or derived products
-        #os.system(f'rm -rf /arc/projects/salvage/ALMA_data/{ID}/')
     
         print('Galaxy reduction complete. Moving on to next galaxy.\n')
 
