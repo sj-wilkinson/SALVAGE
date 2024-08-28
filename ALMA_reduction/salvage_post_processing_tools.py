@@ -759,44 +759,44 @@ def MH2_from_cube(ID, z, ra, dec, r_outer, mask_type = 'total', a_CO = 4.35, vie
     
     file_0       = f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/derived/{ID}/{ID}_12m_co10_MOMENTTYPE.fits'
     header_0     = pyfits.getheader(file_0.replace('MOMENTTYPE', 'strict_mom0'))
-
+    
     # import cube, convert to K
     cube = SpectralCube.read(file, format='fits').to(u.K).with_spectral_unit(u.km/u.s, velocity_convention='radio', rest_value=(115.27120180 * u.GHz)/(1+z))
-
+    
     # compute pc_per_pix from redshift and pixel scale
     arcsec_per_pix = header_image['CDELT2']*3600 # "/pix
     pc_per_arcsec = (cosmo.arcsec_per_kpc_proper(z=z).value / 1e3) ** -1
     pc_per_pix = pc_per_arcsec * arcsec_per_pix
-
+    
     if mask_type == 'inner':
-
+    
         # find central pixel from SDSS ra and dec
         wcs = WCS(header_0)
         center_coord = SkyCoord(ra, dec, unit="deg") 
         center_x, center_y = wcs.world_to_pixel(center_coord)
-
+    
         # generate a circular aperture
         #center_pixel = header_0['CRPIX1']
         #center = PixCoord(center_pixel, center_pixel)
         center = PixCoord(center_x, center_y)
         radius = 1.5 / (header_0['CDELT2']*3600)
         aperture = CirclePixelRegion(center, radius)
-
+    
         # convert aperture to a mask and apply to the moment map
         # mode = 'exact' uses partial contribution from edge pixels to simulate a perfect circle
         mask = aperture.to_mask(mode='exact')
         
         # make mask an array with same dimensions as a cube slice
         mask = np.array(mask.to_image(np.shape(cube[0,:,:])).data, dtype = float)
-
+    
         # apply mask to cube
         masked_cube = cube * mask
-
+    
     if mask_type == 'outer':
-
+    
         # instead of using the anulus pixel region, subtract the fancy circle mask from the outer circle
         # anulus method does not allow pixels to partially contribute to the inner and outer regions
-
+    
         # both circular apertures will use the same center
         #center_pixel = header_0['CRPIX1']
         #center = PixCoord(center_pixel, center_pixel)
@@ -804,77 +804,63 @@ def MH2_from_cube(ID, z, ra, dec, r_outer, mask_type = 'total', a_CO = 4.35, vie
         center_coord = SkyCoord(ra, dec, unit="deg") 
         center_x, center_y = wcs.world_to_pixel(center_coord)
         center = PixCoord(center_x, center_y)
-
+    
         # generate an inner circular aperture with mode = 'exact'
         radius = 1.5 / (header_image['CDELT2']*3600)
         aperture = CirclePixelRegion(center, radius)
         mask_inner = aperture.to_mask(mode='exact')
         mask_inner = np.array(mask_inner.to_image(np.shape(cube[0,:,:])).data, dtype = float)
-
+    
         # generate an outer circular aperture
         radius_outer = r_outer / (header_image['CDELT2']*3600)
         aperture = CirclePixelRegion(center, radius_outer)
         mask_outer = aperture.to_mask()
         mask_outer = np.array(mask_outer.to_image(np.shape(cube[0,:,:])).data, dtype = float)
-
+    
         mask_outer = mask_outer - mask_inner
-
+    
         # apply mask to cube
         masked_cube = cube * mask_outer
-
-
-    #if view:
-
+    
     plt.figure(figsize = (8,5))
     
-    # initialize empty spectrum
-    #stack = masked_cube[:,0,0]
-    stack = masked_cube[:,int(header_image['CRPIX1']),int(header_image['CRPIX1'])].copy()
-    stack -= stack
-    
     masked_cube[:,int(header_image['CRPIX1']),int(header_image['CRPIX1'])].quicklook(label = 'Central Spectrum')
-
+    
+    # replace nans with 0's, don't want them adding to the stack...
+    #masked_cube = masked_cube.with_fill_value(0.)  still nans
+    masked_cube = masked_cube.apply_numpy_function(np.nan_to_num, fill=0)
+    
     # stack the masked cube spectra
-    for i in range(np.shape(masked_cube[0,:,:])[0]):
-        for j in range(np.shape(masked_cube[0,:,:])[0]):
-
-            # total cube includes regions outside FOV filled with nans
-            # make sure not to be stacking nan spectra!
-            #print(np.sum(masked_cube[:,i,j]).data)
-            if np.sum(masked_cube[:,i,j].data) > -100:
-
-               stack+=masked_cube[:,i,j]
-
-    
-    stack.quicklook(label = 'Total Integrated Spectrum')
-    
-    ## try to get something quicker like this!
-    #stack = np.nansum(masked_cube, axis = (1,2))
-    #stack = masked_cube.sum(axis=1).sum(axis=0)
+    stack = np.nansum(masked_cube, axis = (1,2))
     
     # bin for better sensitivity?
     #downsampled_stack = stack.downsample_axis(2, axis = 0)
     #downsampled_stack.quicklook(label = 'Total Integrated Spectrum (binned by 2x)')
-
+    
     # smooth for visualization
-    kernel = Gaussian1DKernel(2)
-    smoothstack = stack.spectral_smooth(kernel)
-    smoothstack.quicklook(label = 'Total Integrated Spectrum (smoothed by 2x)')
+    #kernel = Gaussian1DKernel(2)
+    #smoothstack = stack.spectral_smooth(kernel)
+    #smoothstack.quicklook(label = 'Total Integrated Spectrum (smoothed by 2x)')
+    
+    plt.plot(cube.spectral_axis, stack, ds = 'steps-mid', label = 'Integrated Spectrum')
     
     plt.legend(fancybox = True)
     plt.title(f'Integrated Spectrum ({mask_type})')
     
     plt.show()
-
-
+    
+    
     # total summed masked cube should give mass
-    L_CO = np.nansum(masked_cube * pc_per_pix**2) * header_image['CDELT3']/-1e3
+    L_CO = np.nansum(stack[(cube.spectral_axis < (np.nanmax(cube.spectral_axis) - (100 * u.km / u.s))) & (cube.spectral_axis > (np.nanmin(cube.spectral_axis) + (100 * u.km / u.s)))]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
     M_H2 = L_CO * a_CO
 
-    L_CO_err = np.nanstd(stack[(stack.spectral_axis > (np.max(stack.spectral_axis) - (100 * u.km / u.s))) & (stack.spectral_axis < (np.min(stack.spectral_axis) + (100 * u.km / u.s)))]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
-    M_H2_err = L_CO_err.value * a_CO
+    if M_H2 < 0:
 
-    #print(np.nansum(stack * pc_per_pix**2) * header_image['CDELT3']/-1e3)
+        M_H2 = 0
+    
+    L_CO_err = np.nanstd(stack[(cube.spectral_axis > (np.nanmax(cube.spectral_axis) - (100 * u.km / u.s))) | (cube.spectral_axis < (np.nanmin(cube.spectral_axis) + (100 * u.km / u.s)))]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
+    M_H2_err = L_CO_err * a_CO
+
 
     return M_H2, M_H2_err
 
