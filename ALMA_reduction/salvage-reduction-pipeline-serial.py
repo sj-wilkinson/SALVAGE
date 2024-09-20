@@ -336,15 +336,36 @@ rerun_targets = ['587742774013657229'] # 2021.1.01089.S (Cortese) the final one
 rerun_targets = ['587739651034054894', '587741533326868609'] # calibrated by help desk but never actually tried myself...? No directories in ALMA_data/, # maybe 587727220865040712?
 #rerun_targets = ['587736547388031357'] # early cycles...
 
-do_stage1 = True
-do_stage2 = True
+# maybe I can put these in a text file and read them in so its not so ugly?
+help_desk_targets = [# Cycle 1/2 targets sent
+                     '587725073918722287', '587725073918722357', '587725074455724392', '587726015085478016', \
+                     '587726032227336433', '587726032228188446', '587726032228909342', '587726032234610739', \
+                     '587726032764076412', '587726032766828783', '587726033300881540', '587726033335550094', \
+                     '587727942952550837', '587727942952681722', '587727943490273729', '587727944027996390', \
+                     '587727944562573646', '587727944563687568', '587728879256207619', '587734892755353685', \
+                     '587736541485400245', '587736547388031357', '587736803470540958', '587736975275327817', \
+                     '587736976347693299', '587738568707604532', '587739406766833786', '587739646199201823', \
+                     '587739647273533569', '587742575921594439', '587742627987980483', '587742628524720281', \
+                     '588015509267284063', '588017704006058105', '588848899357147414', '588848899895853247', \
+                     '588848900429185386', '588848900429185433', '588848900966449330', \
+                    # 2015/2016 targets sent
+                     '588017703458111630', '587726100411121941', '587726102556180606', '587741533326868609', \
+                     '587739651034054894', '587727220865040712', '588848900966514994', '587732772108042456', \
+                     '587726015069421743','587730817902116911', '587726877264249088', '587729776375562308']
+
+srdp_targets = ['587727944034091201', '587742774013657229', '587734621630431417', '587735236883513572', \
+                '587742551761027182', '587739845391876411', '587742615097442546', '588023669708816634', \
+                '587742062148911209', '587741724972548183', '587741602035138654', '587739407875113205', \
+                '587736940914409584']
+
+do_stage1 = False
+do_stage2 = False
 do_stage3 = True
 do_stage4 = True
 
 rerun_only = True
 skip_completed = True
-skip_early_cycles = False
-
+skip_help_desk_targets = False
 wipe_downloads = True
 
 # loop over galaxies and launch jobs
@@ -364,14 +385,6 @@ for i in np.arange(min_index,max_index):
     if (ID not in rerun_targets) & rerun_only:
         continue
 
-    # skip if file is known to be prohibitively large
-    if (ID in massive_downloads) & skip_massive_downloads:
-        
-        print('##################################################################')
-        print(f'Skipping {ID} because it is known to require a lot of disk space.')
-        print('##################################################################')
-        continue
-
     # skip if SDSS object already has a PHANGS moment 0 map
     if os.path.exists(f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/derived/{ID}/{ID}_12m_co10_strict_mom0.fits') & skip_completed:
         
@@ -380,7 +393,7 @@ for i in np.arange(min_index,max_index):
         print('##############################################################################')
 
                             # don't wipe the calibrated MS's supplied by the help desk!
-        if wipe_downloads & (float(YEAR)>2013):
+        if wipe_downloads & (ID not in help_desk_targets) & (ID not in srdp_targets):
         
             print('Wiping downloads, accordingly.')
             print(f'rm -rf /arc/projects/salvage/ALMA_data/{ID}/*.tar')
@@ -396,18 +409,12 @@ for i in np.arange(min_index,max_index):
 
         continue
 
-    # skip early cycles, as they may not be able to be pipeline calibrated
-    if (float(YEAR)<=2013) & skip_early_cycles:
-        print('##############################################################################')
-        print(f'Skipping {ID} because it is unlikely to be pipeline calibrated.')
-        print('##############################################################################')
-        continue
 
     # allow early cycles to run through the pipeline, but make sure download and calibration is skipped...
-    if (float(YEAR)<=2013):
+    if (ID in help_desk_targets) or (ID in srdp_targets):
 
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-        print(f'{ID} is from an early cycle and was calibrated by the ALMA Help Desk.')
+        print(f'{ID} was calibrated by the ALMA Help Desk or the SRDP service.')
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print()
 
@@ -479,12 +486,12 @@ for i in np.arange(min_index,max_index):
         print()
         #continue
 
-    # identify and select the appropriate CASA version
-    #version, calib, method = get_casa_version(PATH, UID)
-    #image = casa_version_to_canfar_image(version)
-    #print(ID, version, calib, method, image)
-
     if do_stage2:
+
+        # identify and select the appropriate CASA version
+        version, calib, method = get_casa_version(PATH, UID)
+        image = casa_version_to_canfar_image(version)
+        print(ID, version, calib, method, image)
             
         # launch headless session on the science platform
         session = Session()
