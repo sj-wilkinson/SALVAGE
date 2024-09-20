@@ -307,6 +307,32 @@ def get_path_to_data(ID, PROJ, MUID):
 
     return PATH, UID
 
+
+def get_srdp_uid(muid):
+
+    if muid == 'uid://A001/X2f52/X2cf':
+        srdp_uid = 'uid___A002_X10275c0_X42f2'
+
+    if muid == 'uid://A001/X3578/Xe1':
+        srdp_uid = 'uid___A002_X111f25c_X4a6'
+
+    if muid == 'uid://A001/X2f52/X2ff':
+        srdp_uid = 'uid___A002_X103d73c_X663'
+
+    if muid == 'uid://A001/X2f52/X2e6':
+        srdp_uid = 'uid___A002_X102cd30_Xaf68'
+
+    if muid == 'uid://A001/X133d/X4226':
+        srdp_uid = 'uid___A002_Xda64e4_X1673'
+
+    if muid == 'uid://A001/X15a2/X72b':
+        srdp_uid = 'uid___A002_Xf61d3a_X11e1'
+
+    
+
+    return srdp_uid
+    
+
 ###########################################
 
 #### STAGE 0: READ IN SAMPLE TO REDUCE ####
@@ -316,8 +342,9 @@ def get_path_to_data(ID, PROJ, MUID):
 fpath = '/arc/projects/salvage/ALMA_reduction/samples/'
 file  = 'salvage-AGN-Aug26-sample_match-lt-4rp_mrs-gt-2rp_qa2-pass_no-inf-dups.txt'
 file  = 'salvage-AGN-Aug29-sample_match-lt-4rp_mrs-gt-1p5rp_res-lt-3p05_qa2-pass_no-inf-dups.txt'
+file  = 'salvage-AGN-Sep20-sample_match-lt-4rp_mrs-gt-1p5rp_res-lt-3p05_qa2-pass_no-inf-dups.txt'
 
-objID_sample, year_sample, muid_sample, proj_sample, name_sample = np.loadtxt(fpath+file, unpack = True, dtype = str, usecols = [0,9,10,11,12])
+objID_sample, year_sample, muid_sample, auid_sample, proj_sample, name_sample = np.loadtxt(fpath+file, unpack = True, dtype = str, usecols = [0,9,10,11,12,13])
 z_sample, mass_sample, rpetro_sample, ra_sample, dec_sample, res_sample, mrs_sample, sens_sample = np.loadtxt(fpath+file, unpack = True, dtype = float, usecols = [1,2,3,4,5,6,7,8])
 
 # galaxies to reduce in this run are given by inputs from the user
@@ -334,7 +361,6 @@ rerun_targets = ['587742774013657229'] # 2021.1.01089.S (Cortese) the final one
 #rerun_targets = ['587732772108042456'] # sent to Help desk as a problem, but has been imaged successfully in the meantime... run moment maps? # deleted directory by accident (1.3 TB it was taking up, so replace with Help Desk calibrated MS for future imaging.)
 
 rerun_targets = ['587739651034054894', '587741533326868609'] # calibrated by help desk but never actually tried myself...? No directories in ALMA_data/, # maybe 587727220865040712?
-#rerun_targets = ['587736547388031357'] # early cycles...
 
 # maybe I can put these in a text file and read them in so its not so ugly?
 help_desk_targets = [# Cycle 1/2 targets sent
@@ -358,14 +384,15 @@ srdp_targets = ['587727944034091201', '587742774013657229', '587734621630431417'
                 '587742062148911209', '587741724972548183', '587741602035138654', '587739407875113205', \
                 '587736940914409584']
 
-do_stage1 = False
-do_stage2 = False
+do_stage1 = True
+do_stage2 = True
 do_stage3 = True
 do_stage4 = True
 
-rerun_only = True
+rerun_only = False
 skip_completed = True
-skip_help_desk_targets = False
+skip_help_desk_targets = True
+skip_srdp_targets = True
 wipe_downloads = True
 
 # loop over galaxies and launch jobs
@@ -406,6 +433,22 @@ for i in np.arange(min_index,max_index):
 
                 os.system(f'rm -rf {PATH}/raw/*')
                 os.system(f'rm -rf {PATH}/calibrated/working/*')
+
+        continue
+
+    if skip_help_desk_targets & (ID in help_desk_targets):
+
+        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        print(f'Skipping {ID} because was calibrated by the ALMA Help Desk.')
+        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+
+        continue
+
+    if skip_srdp_targets & (ID in srdp_targets):
+
+        print('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+        print(f'Skipping {ID} because was calibrated by the SRDP Service.')
+        print('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
         continue
 
