@@ -314,7 +314,8 @@ def get_path_to_data(ID, PROJ, MUID):
 ###########################################
 
 fpath = '/arc/projects/salvage/ALMA_reduction/samples/'
-file  =  'salvage-AGN-Aug26-sample_match-lt-4rp_mrs-gt-2rp_qa2-pass_no-inf-dups.txt'
+file  = 'salvage-AGN-Aug26-sample_match-lt-4rp_mrs-gt-2rp_qa2-pass_no-inf-dups.txt'
+file  = 'salvage-AGN-Aug29-sample_match-lt-4rp_mrs-gt-1p5rp_res-lt-3p05_qa2-pass_no-inf-dups.txt'
 
 objID_sample, year_sample, muid_sample, proj_sample, name_sample = np.loadtxt(fpath+file, unpack = True, dtype = str, usecols = [0,9,10,11,12])
 z_sample, mass_sample, rpetro_sample, ra_sample, dec_sample, res_sample, mrs_sample, sens_sample = np.loadtxt(fpath+file, unpack = True, dtype = float, usecols = [1,2,3,4,5,6,7,8])
@@ -324,41 +325,23 @@ argv = sys.argv
 min_index = int(argv[-2])
 max_index = int(argv[-1])
 
-# downloads that take up 500+ GB of disk space                                                                                                        # 587736803470540958 took up 7T in intermediate imaging...
-massive_downloads = ['588017703996096564', '587727177931817054' , '588848900966514994', '588848899357737008', '587727229448421420', '587741489300766802', '587736803470540958', '587726877264249088', '587734621630431417', '587742614559785152']
-# 587726877264249088 is a 1.4 TB download (ACTUALLY 0.7 TB download, that was an overestimate for sure)
-# 587734621630431417 is a 0.94 TB download (calibration takes forever, too)
-# 587742614559785152 is a 0.62 TB download
-
-# updated list (Aug22)
-massive_downloads = ['587726877262086322', '587734621630431417', '587739407875113205', '587742062148911209', '587726877264249088', '587742615097442546']
-# 587726877262086322; reading 1.6 TB
-# 587734621630431417; reading 0.94 TB
-# 587739407875113205; reading 0.55 TB
-# 587742062148911209; reading 0.62 TB
-# 587726877264249088; reading 1.8 TB
-# 587742615097442546; reading 0.54 TB
-
-
-rerun_targets = ['588017992295972989'] # galaxy with central non-detection...
-rerun_targets = ['587726877262086322', '587726031176138762', '587726015069421743'] # unzip, unzip, rerun (hoping calibrations will work for these this time)
-rerun_targets = ['587726015069421743'] # replace 4.7.0 with 4.7.2
-rerun_targets = ['587722982815236212', '587726032767025441', '588848898841051249'] #2012.1.01080.S
-rerun_targets = ['587726877262086322'] # re-running with 32 GB of RAM
 #rerun_targets = ['587727944034091201'] # the rest of 2018.1.01852.S is complete, try this again
 #rerun_targets = ['587729776375562308'] # the only target from 2016.1.01269.S, try this again (I think I messed this one up, try again later?)
-#rerun_targets = ['587727943490797666', '588848900966514994'] # two targets remaining in 2016.1.00329.S, 4994 was just a timeout error in the download... try again?
 #rerun_targets = ['587726100411121941'] # files not where script expects, copied and re-running...
-#rerun_targets = ['588848900966514994', '587729776375562308', '587726015069421743', '587727944034091201', '587726102556180606']
-#rerun_targets = ['588848899895853247', '588848900429185386', '588848900429185433'] # 2013 project, newly unpacked tar files...
+rerun_targets = ['588017703458111630', '587732772108042456', '587726015069421743'] # 2015 and 2016 project codes with previously successful targets, these should work, right? It would be silly to send them off
+rerun_targets = ['588848899929080012', '587736543088672829'] # 2017 project codes with previously successful targets
+rerun_targets = ['587742774013657229'] # 2021.1.01089.S (Cortese) the final one
+#rerun_targets = ['587732772108042456'] # sent to Help desk as a problem, but has been imaged successfully in the meantime... run moment maps? # deleted directory by accident (1.3 TB it was taking up, so replace with Help Desk calibrated MS for future imaging.)
 
-do_stage1 = False
+rerun_targets = ['587739651034054894', '587741533326868609'] # calibrated by help desk but never actually tried myself...? No directories in ALMA_data/, # maybe 587727220865040712?
+#rerun_targets = ['587736547388031357'] # early cycles...
+
+do_stage1 = True
 do_stage2 = True
 do_stage3 = True
 do_stage4 = True
 
 rerun_only = True
-skip_massive_downloads = False
 skip_completed = True
 skip_early_cycles = False
 
@@ -494,12 +477,12 @@ for i in np.arange(min_index,max_index):
         print()
         print(f'Path to data not found. Skipping this galaxy ({ID}).\n')
         print()
-        continue
+        #continue
 
     # identify and select the appropriate CASA version
-    version, calib, method = get_casa_version(PATH, UID)
-    image = casa_version_to_canfar_image(version)
-    print(ID, version, calib, method, image)
+    #version, calib, method = get_casa_version(PATH, UID)
+    #image = casa_version_to_canfar_image(version)
+    #print(ID, version, calib, method, image)
 
     if do_stage2:
             
@@ -583,7 +566,7 @@ for i in np.arange(min_index,max_index):
         elif ms_file_[-10:] == '.ampli_inf':
             continue
         else:
-            ms_files_keep.append(ms_file_)
+            ms_files_keep.append(ms_file_.replace(ms_root, ''))
 
     print()
     print('The following ms files were in the above directory.')
@@ -790,6 +773,7 @@ for i in np.arange(min_index,max_index):
         os.system(f'rm -rf /arc/projects/salvage/ALMA_data/{ID}/*.tar')
         os.system(f'rm -rf /arc/projects/salvage/ALMA_data/{ID}/*.pickle')
         os.system(f'rm -rf {PATH}/raw/*')
+        os.system(f'rm -rf {PATH}/product/*')
         os.system(f'rm -rf {PATH}/calibrated/working/*')
         
 
