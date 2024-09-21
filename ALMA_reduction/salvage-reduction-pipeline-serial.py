@@ -293,12 +293,29 @@ def get_path_to_data(ID, PROJ, MUID):
     PATH = None
     
     for root, dirs, files in os.walk(f"/arc/projects/salvage/ALMA_data/{ID}/"):
-        
-        if "member.uid___"+UID in dirs:
-            PATH = os.path.join(root, "member.uid___"+UID)
 
+        # expected formatting for locally calibrated targets (with ScriptForPI.py)
+        if "member.uid___"+UID in dirs:
+            PATH = os.path.join(root, "member.uid___"+UID+'/calibrated/')
+
+        # expected format for some ALMA Help Desk calibrated targets
         if "calibrated_final.ms" in dirs:
             PATH = f"/arc/projects/salvage/ALMA_data/{ID}/"
+
+        # expected format for some ALMA Help Desk calibrated targets (2015/2016 batch)
+        if "calibrated_final.ms_member.uid___."+UID in dirs:
+            PATH = f"/arc/projects/salvage/ALMA_data/{ID}/"
+
+    # if the data wasn't found, try checking if it is calibrated by the SRDP Service
+    if PATH == None:
+
+        SRDP_UID = get_srdp_uid(MUID)
+
+        for root, dirs, files in os.walk(f"/arc/projects/salvage/ALMA_data/downloads/"):
+
+            # expected format for some ALMA Help Desk calibrated targets
+            if SRDP in dirs:
+                PATH = f"/arc/projects/salvage/ALMA_data/downloads/{SRDP}/"
     
     if PATH == None:
         print()
@@ -328,7 +345,8 @@ def get_srdp_uid(muid):
     if muid == 'uid://A001/X15a2/X72b':
         srdp_uid = 'uid___A002_Xf61d3a_X11e1'
 
-    
+    if muid == 'uid://A001/X2f52/X2fc':
+        srdp_uid = 'uid___A002_X102cd30_X3182'
 
     return srdp_uid
     
@@ -384,15 +402,17 @@ srdp_targets = ['587727944034091201', '587742774013657229', '587734621630431417'
                 '587742062148911209', '587741724972548183', '587741602035138654', '587739407875113205', \
                 '587736940914409584']
 
-do_stage1 = True
-do_stage2 = True
+rerun_targets = srdp_targets.copy()
+
+do_stage1 = False
+do_stage2 = False
 do_stage3 = True
 do_stage4 = True
 
-rerun_only = False
+rerun_only = True
 skip_completed = True
-skip_help_desk_targets = True
-skip_srdp_targets = True
+skip_help_desk_targets = False
+skip_srdp_targets = False
 wipe_downloads = True
 
 # loop over galaxies and launch jobs
@@ -457,7 +477,7 @@ for i in np.arange(min_index,max_index):
     if (ID in help_desk_targets) or (ID in srdp_targets):
 
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-        print(f'{ID} was calibrated by the ALMA Help Desk or the SRDP service.')
+        print(f'{ID} was calibrated by the ALMA Help Desk or the SRDP service. Carry on.')
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print()
 
@@ -532,7 +552,7 @@ for i in np.arange(min_index,max_index):
     if do_stage2:
 
         # identify and select the appropriate CASA version
-        version, calib, method = get_casa_version(PATH, UID)
+        version, calib, method = get_casa_version(PATH.replace('/calibrated/', ''), UID)
         image = casa_version_to_canfar_image(version)
         print(ID, version, calib, method, image)
             
@@ -589,14 +609,12 @@ for i in np.arange(min_index,max_index):
     # initialize string
     out_str = ''
 
-    # prep file path for PHANGS-ALMA pipeline
-    ms_root = '/arc/projects/salvage/ALMA_data/'
+    # prep file path for PHANGS-ALMA pipeline (depending on where the data was calibrated ...)
+    ms_root = '/arc/projects/salvage/ALMA_data/' # root is always the same
     ms_filepath = PATH.replace(ms_root, '') # wipe ms_root directory so it can be added separately
 
-    if float(YEAR) > 2013:
-        ms_filepath += '/calibrated/' # add calibrated on the end so that it points to the calibrated data
-
-    # until I discover more nuance, take all measurement set files from this directory and let PHANGS deal with them
+    # take all measurement set files from this directory and let PHANGS deal with them
+    # could be multiple observations to meet QA and/or duplicate but approx equally good observations
     ms_files = glob.glob(ms_root + ms_filepath + '*.ms*')
 
     print(ms_root + ms_filepath, os.path.isdir(ms_root + ms_filepath), len(ms_files))
