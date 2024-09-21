@@ -309,7 +309,7 @@ def get_path_to_data(ID, PROJ, MUID):
     # if the data wasn't found, try checking if it is calibrated by the SRDP Service
     if PATH == None:
 
-        SRDP_UID = get_srdp_uid(MUID)
+        SRDP = get_srdp_uid(MUID)
 
         for root, dirs, files in os.walk(f"/arc/projects/salvage/ALMA_data/downloads/"):
 
