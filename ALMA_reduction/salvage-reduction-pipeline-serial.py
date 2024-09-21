@@ -327,6 +327,8 @@ def get_path_to_data(ID, PROJ, MUID):
 
 def get_srdp_uid(muid):
 
+    srdp_uid = None
+
     if muid == 'uid://A001/X2f52/X2cf':
         srdp_uid = 'uid___A002_X10275c0_X42f2'
 
@@ -347,6 +349,10 @@ def get_srdp_uid(muid):
 
     if muid == 'uid://A001/X2f52/X2fc':
         srdp_uid = 'uid___A002_X102cd30_X3182'
+
+    if srdp_uid == None:
+
+        print(muid)
 
     return srdp_uid
     
