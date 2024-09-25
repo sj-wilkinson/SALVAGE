@@ -759,6 +759,7 @@ def MH2_from_cube(ID, z, ra, dec, r_a, r_b, phi, a_CO = 4.35):
     
     # import cube, convert to K
     cube = SpectralCube.read(file, format='fits').to(u.K).with_spectral_unit(u.km/u.s, velocity_convention='radio', rest_value=(115.27120180 * u.GHz)/(1+z))
+    spectral_axis = cube.spectral_axis
 
     # replace nans with 0's, don't want them adding to the integrated spectra...
     cube = cube.apply_numpy_function(np.nan_to_num, fill=0)
@@ -814,9 +815,9 @@ def MH2_from_cube(ID, z, ra, dec, r_a, r_b, phi, a_CO = 4.35):
 
     fig, ax = plt.subplots(1,1,figsize = (8,5))
     
-    ax.plot(cube.spectral_axis, spec_inner, ds = 'steps-mid', label = 'Inner', color = 'orangered', alpha = 0.8, lw = 2)
-    ax.plot(cube.spectral_axis, spec_outer, ds = 'steps-mid', label = 'Outer', color = 'cornflowerblue', alpha = 0.8, lw = 2)
-    ax.plot(cube.spectral_axis, spec_total, ds = 'steps-mid', label = 'Total', color = 'forestgreen', alpha = 0.8, lw = 2)
+    ax.plot(spectral_axis, spec_inner, ds = 'steps-mid', label = 'Inner', color = 'orangered', alpha = 0.8, lw = 2)
+    ax.plot(spectral_axis, spec_outer, ds = 'steps-mid', label = 'Outer', color = 'cornflowerblue', alpha = 0.8, lw = 2)
+    ax.plot(spectral_axis, spec_total, ds = 'steps-mid', label = 'Total', color = 'forestgreen', alpha = 0.8, lw = 2)
 
     ax.legend(fancybox = True, loc = 'upper left', frameon = False)
 
@@ -828,8 +829,8 @@ def MH2_from_cube(ID, z, ra, dec, r_a, r_b, phi, a_CO = 4.35):
     #ax.set_xticks(np.arange(np.min(spec_axis).value,np.max(spec_axis).value+100,100), minor = True)
     ax.set_xticks(np.arange(-600,800,200))
     ax.set_xticks(np.arange(-600,800,100), minor = True)
-    ax.set_yticks(np.arange(np.round(np.nanmin(spec), -1), np.round(np.nanmax(spec), -1)+10,10))
-    ax.set_yticks(np.arange(np.round(np.nanmin(spec), -1), np.round(np.nanmax(spec), -1)+5,5), minor = True)
+    ax.set_yticks(np.arange(np.round(np.nanmin(spec_total), -1), np.round(np.nanmax(spec_total), -1)+10,10))
+    ax.set_yticks(np.arange(np.round(np.nanmin(spec_total), -1), np.round(np.nanmax(spec_total), -1)+5,5), minor = True)
     
     #ax.set_xlim(np.min(spec_axis).value,np.max(spec_axis).value)
     #ax.set_xlim(-650, 650)
@@ -838,6 +839,9 @@ def MH2_from_cube(ID, z, ra, dec, r_a, r_b, phi, a_CO = 4.35):
     ax.tick_params('both', direction='in', which = 'both', top = True, right = True, width = 1., labelsize = 11)
     ax.tick_params(axis = 'both', which = 'major', length = 7)
     ax.tick_params(axis = 'both', which = 'minor', length = 4)
+
+    ax.fill_between([np.nanmin(spec_total) - 0.05 * np.nanmax(spec_total), np.nanmax(spec_total) + 0.05 * np.nanmax(spec_total)], np.nanmin(spectral_axis).value, (np.nanmin(spectral_axis).value + 100), alpha = 0.4, hatch = '/', color = 'k')
+    ax.fill_between([np.nanmin(spec_total) - 0.05 * np.nanmax(spec_total), np.nanmax(spec_total) + 0.05 * np.nanmax(spec_total)], (np.nanmax(spectral_axis).value - 100), np.nanmax(spectral_axis).value, alpha = 0.4, hatch = '/', color = 'k')
     
     for axis in ['top','bottom','left','right']:
         ax.spines[axis].set_linewidth(1.)
@@ -848,7 +852,7 @@ def MH2_from_cube(ID, z, ra, dec, r_a, r_b, phi, a_CO = 4.35):
     
 
     # compute masses
-    spectral_mask = (cube.spectral_axis < (np.nanmax(cube.spectral_axis) - (100 * u.km / u.s))) & (cube.spectral_axis > (np.nanmin(cube.spectral_axis) + (100 * u.km / u.s)))
+    spectral_mask = (spectral_axis < (np.nanmax(spectral_axis) - (100 * u.km / u.s))) & (spectral_axis > (np.nanmin(spectral_axis) + (100 * u.km / u.s)))
     
     L_CO_inner = np.nansum(spec_inner[spectral_mask]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
     L_CO_outer = np.nansum(spec_outer[spectral_mask]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
@@ -858,9 +862,9 @@ def MH2_from_cube(ID, z, ra, dec, r_a, r_b, phi, a_CO = 4.35):
     M_H2_outer = L_CO_outer * a_CO
     M_H2_total = L_CO_total * a_CO
     
-    H_H2_inner_err = (np.nanstd(spec_inner[~spectral_mask]) * pc_per_pix**2 * (header_image['CDELT3']/-1e3)) * a_CO
-    H_H2_outer_err = (np.nanstd(spec_outer[~spectral_mask]) * pc_per_pix**2 * (header_image['CDELT3']/-1e3)) * a_CO
-    H_H2_total_err = (np.nanstd(spec_total[~spectral_mask]) * pc_per_pix**2 * (header_image['CDELT3']/-1e3)) * a_CO
+    M_H2_inner_err = (np.nanstd(spec_inner[~spectral_mask]) * pc_per_pix**2 * (header_image['CDELT3']/-1e3)) * a_CO
+    M_H2_outer_err = (np.nanstd(spec_outer[~spectral_mask]) * pc_per_pix**2 * (header_image['CDELT3']/-1e3)) * a_CO
+    M_H2_total_err = (np.nanstd(spec_total[~spectral_mask]) * pc_per_pix**2 * (header_image['CDELT3']/-1e3)) * a_CO
 
     if M_H2_inner < 0: M_H2_inner = 0
     if M_H2_outer < 0: M_H2_outer = 0
@@ -991,25 +995,25 @@ def mom0_pixel_coverage(ID, z, ra, dec, r_a, r_b, phi):
     pc_per_pix = pc_per_arcsec * arcsec_per_pix
 
     # find central pixel from SDSS ra and dec
-    wcs = WCS(header_image)[0]
+    wcs = WCS(header_0)
     center_coord = SkyCoord(ra, dec, unit="deg") 
     center_x, center_y = wcs.world_to_pixel(center_coord)
     center = PixCoord(center_x, center_y)
 
     # generate an inner circular aperture with radius 1.5"
     # mode = 'exact' uses partial contribution from edge pixels to simulate a perfect circle
-    radius = 1.5 / (header_image['CDELT2']*3600)
+    radius = 1.5 / (header_0['CDELT2']*3600)
     aperture = CirclePixelRegion(center, radius)
     mask_inner = aperture.to_mask(mode='exact')
-    mask_inner = np.array(mask_inner.to_image(np.shape(cube[0,:,:])).data, dtype = float)
+    mask_inner = np.array(mask_inner.to_image(np.shape(moment_0)), dtype = float)
     
     # instead of using the anulus pixel region, subtract the fancy circle mask from the outer circle
     # anulus method does not allow pixels to partially contribute to the inner and outer regions
     
     # generate an outer elliptical aperture according to the SDSS modelMag photometry
-    aperture = EllipsePixelRegion(center, r_a / (header_image['CDELT2']*3600), r_b / (header_image['CDELT2']*3600), phi * u.deg)
+    aperture = EllipsePixelRegion(center, r_a / (header_0['CDELT2']*3600), r_b / (header_0['CDELT2']*3600), phi * u.deg)
     mask_total = aperture.to_mask()
-    mask_total = np.array(mask_outer.to_image(np.shape(cube[0,:,:])).data, dtype = float)
+    mask_total = np.array(mask_total.to_image(np.shape(moment_0)), dtype = float)
     
     # annular outer mask
     mask_outer = mask_total - mask_inner
