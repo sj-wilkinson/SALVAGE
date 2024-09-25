@@ -16,7 +16,7 @@ cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
 
 from regions.core import PixCoord
 from regions.shapes.circle import CirclePixelRegion
-from regions import RectanglePixelRegion, CircleAnnulusPixelRegion
+from regions import RectanglePixelRegion, CircleAnnulusPixelRegion, EllipsePixelRegion
 
 from itertools import repeat
 from scipy.ndimage import rotate
@@ -752,90 +752,56 @@ def MH2_from_mom0(ID, z, ra, dec, r_outer, mask_type = 'total', a_CO = 4.35):
 
     return M_H2, M_H2_err
 
-def MH2_from_cube(ID, z, ra, dec, r_outer, mask_type = 'total', a_CO = 4.35, view = False):
+def MH2_from_cube(ID, z, ra, dec, r_a, r_b, phi, a_CO = 4.35):
 
-    file         = f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/imaging/{ID}/{ID}_12m_co10.fits'
+    file = f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/imaging/{ID}/{ID}_12m_co10.fits'
     header_image = pyfits.getheader(file)
-    
-    #file_0       = f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/derived/{ID}/{ID}_12m_co10_MOMENTTYPE.fits'
-    #header_0     = pyfits.getheader(file_0.replace('MOMENTTYPE', 'strict_mom0'))
     
     # import cube, convert to K
     cube = SpectralCube.read(file, format='fits').to(u.K).with_spectral_unit(u.km/u.s, velocity_convention='radio', rest_value=(115.27120180 * u.GHz)/(1+z))
+
+    # replace nans with 0's, don't want them adding to the integrated spectra...
+    cube = cube.apply_numpy_function(np.nan_to_num, fill=0)
     
     # compute pc_per_pix from redshift and pixel scale
     arcsec_per_pix = header_image['CDELT2']*3600 # "/pix
     pc_per_arcsec = (cosmo.arcsec_per_kpc_proper(z=z).value / 1e3) ** -1
     pc_per_pix = pc_per_arcsec * arcsec_per_pix
-    
-    if mask_type == 'inner':
-    
-        # find central pixel from SDSS ra and dec
-        wcs = WCS(header_image)[0]
-        center_coord = SkyCoord(ra, dec, unit="deg") 
-        center_x, center_y = wcs.world_to_pixel(center_coord)
-    
-        # generate a circular aperture
-        #center_pixel = header_0['CRPIX1']
-        #center = PixCoord(center_pixel, center_pixel)
-        center = PixCoord(center_x, center_y)
-        radius = 1.5 / (header_image['CDELT2']*3600)
-        aperture = CirclePixelRegion(center, radius)
-    
-        # convert aperture to a mask and apply to the moment map
-        # mode = 'exact' uses partial contribution from edge pixels to simulate a perfect circle
-        mask = aperture.to_mask(mode='exact')
-        
-        # make mask an array with same dimensions as a cube slice
-        mask = np.array(mask.to_image(np.shape(cube[0,:,:])).data, dtype = float)
-    
-        # apply mask to cube
-        masked_cube = cube * mask
-    
-    if mask_type == 'outer':
-    
-        # instead of using the anulus pixel region, subtract the fancy circle mask from the outer circle
-        # anulus method does not allow pixels to partially contribute to the inner and outer regions
-    
-        # both circular apertures will use the same center
-        #center_pixel = header_0['CRPIX1']
-        #center = PixCoord(center_pixel, center_pixel)
-        wcs = WCS(header_image)[0]
-        center_coord = SkyCoord(ra, dec, unit="deg") 
-        center_x, center_y = wcs.world_to_pixel(center_coord)
-        center = PixCoord(center_x, center_y)
-    
-        # generate an inner circular aperture with mode = 'exact'
-        radius = 1.5 / (header_image['CDELT2']*3600)
-        aperture = CirclePixelRegion(center, radius)
-        mask_inner = aperture.to_mask(mode='exact')
-        mask_inner = np.array(mask_inner.to_image(np.shape(cube[0,:,:])).data, dtype = float)
-    
-        # generate an outer circular aperture
-        radius_outer = r_outer / (header_image['CDELT2']*3600)
-        aperture = CirclePixelRegion(center, radius_outer)
-        mask_outer = aperture.to_mask()
-        mask_outer = np.array(mask_outer.to_image(np.shape(cube[0,:,:])).data, dtype = float)
-    
-        mask_outer = mask_outer - mask_inner
-    
-        # apply mask to cube
-        masked_cube = cube * mask_outer
 
-    if mask_type == 'total':
+    # find central pixel from SDSS ra and dec
+    wcs = WCS(header_image)[0]
+    center_coord = SkyCoord(ra, dec, unit="deg") 
+    center_x, center_y = wcs.world_to_pixel(center_coord)
+    center = PixCoord(center_x, center_y)
 
-        masked_cube = cube
+    # generate an inner circular aperture with radius 1.5"
+    # mode = 'exact' uses partial contribution from edge pixels to simulate a perfect circle
+    radius = 1.5 / (header_image['CDELT2']*3600)
+    aperture = CirclePixelRegion(center, radius)
+    mask_inner = aperture.to_mask(mode='exact')
+    mask_inner = np.array(mask_inner.to_image(np.shape(cube[0,:,:])).data, dtype = float)
     
-    plt.figure(figsize = (8,5))
+    # instead of using the anulus pixel region, subtract the fancy circle mask from the outer circle
+    # anulus method does not allow pixels to partially contribute to the inner and outer regions
     
-    masked_cube[:,int(header_image['CRPIX1']),int(header_image['CRPIX1'])].quicklook(label = 'Central Spectrum')
+    # generate an outer elliptical aperture according to the SDSS modelMag photometry
+    aperture = EllipsePixelRegion(center, r_a / (header_image['CDELT2']*3600), r_b / (header_image['CDELT2']*3600), phi * u.deg)
+    mask_total = aperture.to_mask()
+    mask_total = np.array(mask_total.to_image(np.shape(cube[0,:,:])).data, dtype = float)
     
-    # replace nans with 0's, don't want them adding to the stack...
-    #masked_cube = masked_cube.with_fill_value(0.)  still nans
-    masked_cube = masked_cube.apply_numpy_function(np.nan_to_num, fill=0)
+    # annular outer mask
+    mask_outer = mask_total - mask_inner
+    mask_outer[mask_outer < 0] = 0 # to avoid over-subtraction if inner radius is larger than r_b
     
-    # stack the masked cube spectra
-    stack = np.nansum(masked_cube, axis = (1,2))
+    # apply masks to cube
+    masked_cube_inner = cube * mask_inner
+    masked_cube_outer = cube * mask_outer
+    masked_cube_total = cube * mask_total
+
+    # integrate over the masked cubes' to extract spectra
+    spec_inner = np.nansum(masked_cube_inner, axis = (1,2))
+    spec_outer = np.nansum(masked_cube_outer, axis = (1,2))
+    spec_total = np.nansum(masked_cube_total, axis = (1,2))
     
     # bin for better sensitivity?
     #downsampled_stack = stack.downsample_axis(2, axis = 0)
@@ -845,30 +811,65 @@ def MH2_from_cube(ID, z, ra, dec, r_outer, mask_type = 'total', a_CO = 4.35, vie
     #kernel = Gaussian1DKernel(2)
     #smoothstack = stack.spectral_smooth(kernel)
     #smoothstack.quicklook(label = 'Total Integrated Spectrum (smoothed by 2x)')
+
+    fig, ax = plt.subplots(1,1,figsize = (8,5))
     
-    plt.plot(cube.spectral_axis, stack, ds = 'steps-mid', label = 'Integrated Spectrum')
+    ax.plot(cube.spectral_axis, spec_inner, ds = 'steps-mid', label = 'Inner', color = 'orangered', alpha = 0.8, lw = 2)
+    ax.plot(cube.spectral_axis, spec_outer, ds = 'steps-mid', label = 'Outer', color = 'cornflowerblue', alpha = 0.8, lw = 2)
+    ax.plot(cube.spectral_axis, spec_total, ds = 'steps-mid', label = 'Total', color = 'forestgreen', alpha = 0.8, lw = 2)
+
+    ax.legend(fancybox = True, loc = 'upper left', frameon = False)
+
+    ax.set_title('Integrated Spectra')
+    ax.set_xlabel('Velocity [km/s]', fontsize = 11)
+    ax.set_ylabel('Brightness Temperature [K]', fontsize = 11)
     
-    plt.legend(fancybox = True)
-    plt.title(f'Integrated Spectrum ({mask_type})')
+    #ax.set_xticks(np.arange(np.min(spec_axis).value,np.max(spec_axis).value+200,200))
+    #ax.set_xticks(np.arange(np.min(spec_axis).value,np.max(spec_axis).value+100,100), minor = True)
+    ax.set_xticks(np.arange(-600,800,200))
+    ax.set_xticks(np.arange(-600,800,100), minor = True)
+    ax.set_yticks(np.arange(np.round(np.nanmin(spec), -1), np.round(np.nanmax(spec), -1)+10,10))
+    ax.set_yticks(np.arange(np.round(np.nanmin(spec), -1), np.round(np.nanmax(spec), -1)+5,5), minor = True)
+    
+    #ax.set_xlim(np.min(spec_axis).value,np.max(spec_axis).value)
+    #ax.set_xlim(-650, 650)
+    ax.set_ylim(np.nanmin(spec_total) - 0.05 * np.nanmax(spec_total),np.nanmax(spec_total) + 0.05 * np.nanmax(spec_total))
+    
+    ax.tick_params('both', direction='in', which = 'both', top = True, right = True, width = 1., labelsize = 11)
+    ax.tick_params(axis = 'both', which = 'major', length = 7)
+    ax.tick_params(axis = 'both', which = 'minor', length = 4)
+    
+    for axis in ['top','bottom','left','right']:
+        ax.spines[axis].set_linewidth(1.)
+    
+    ax.set_title(f'Integrated Spectra)')
     
     plt.show()
     
+
+    # compute masses
+    spectral_mask = (cube.spectral_axis < (np.nanmax(cube.spectral_axis) - (100 * u.km / u.s))) & (cube.spectral_axis > (np.nanmin(cube.spectral_axis) + (100 * u.km / u.s)))
     
-    # total summed masked cube should give mass
-    L_CO = np.nansum(stack[(cube.spectral_axis < (np.nanmax(cube.spectral_axis) - (100 * u.km / u.s))) & (cube.spectral_axis > (np.nanmin(cube.spectral_axis) + (100 * u.km / u.s)))]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
-    M_H2 = L_CO * a_CO
-
-    if M_H2 < 0:
-
-        M_H2 = 0
+    L_CO_inner = np.nansum(spec_inner[spectral_mask]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
+    L_CO_outer = np.nansum(spec_outer[spectral_mask]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
+    L_CO_total = np.nansum(spec_total[spectral_mask]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
     
-    L_CO_err = np.nanstd(stack[(cube.spectral_axis > (np.nanmax(cube.spectral_axis) - (100 * u.km / u.s))) | (cube.spectral_axis < (np.nanmin(cube.spectral_axis) + (100 * u.km / u.s)))]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
-    M_H2_err = L_CO_err * a_CO
+    M_H2_inner = L_CO_inner * a_CO
+    M_H2_outer = L_CO_outer * a_CO
+    M_H2_total = L_CO_total * a_CO
+    
+    H_H2_inner_err = (np.nanstd(spec_inner[~spectral_mask]) * pc_per_pix**2 * (header_image['CDELT3']/-1e3)) * a_CO
+    H_H2_outer_err = (np.nanstd(spec_outer[~spectral_mask]) * pc_per_pix**2 * (header_image['CDELT3']/-1e3)) * a_CO
+    H_H2_total_err = (np.nanstd(spec_total[~spectral_mask]) * pc_per_pix**2 * (header_image['CDELT3']/-1e3)) * a_CO
 
+    if M_H2_inner < 0: M_H2_inner = 0
+    if M_H2_outer < 0: M_H2_outer = 0
+    if M_H2_total < 0: M_H2_total = 0
 
-    return M_H2, M_H2_err
+    return M_H2_inner, M_H2_outer, M_H2_total, M_H2_inner_err, M_H2_outer_err, M_H2_total_err
+    
 
-def MH2_from_cube_phys(ID, z, ra, dec, r_inner, r_outer, mask_type = 'total', a_CO = 4.35,):
+def MH2_from_cube_phys(ID, z, ra, dec, r_inner, r_outer, mask_type = 'total', a_CO = 4.35):
 
     file         = f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/imaging/{ID}/{ID}_12m_co10.fits'
     header_image = pyfits.getheader(file)
@@ -975,54 +976,46 @@ def MH2_from_cube_phys(ID, z, ra, dec, r_inner, r_outer, mask_type = 'total', a_
     return M_H2, M_H2_err
 
 
-def mom0_pixel_coverage(ID, z, ra, dec, r_outer):
+def mom0_pixel_coverage(ID, z, ra, dec, r_a, r_b, phi):
 
     # compute the molecular gas mass from PHANGS moment 0 maps, assuming a_CO = 4.35 (K km s−1 pc2)^−1 from Lin+20
 
     imagename = f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/derived/{ID}/{ID}_12m_co10_MOMENTTYPE.fits'
 
-    moment_0     = pyfits.getdata(imagename.replace('MOMENTTYPE', 'strict_mom0'))
-    header_0     = pyfits.getheader(imagename.replace('MOMENTTYPE', 'strict_mom0'))
+    moment_0 = pyfits.getdata(imagename.replace('MOMENTTYPE', 'strict_mom0'))
+    header_0 = pyfits.getheader(imagename.replace('MOMENTTYPE', 'strict_mom0'))
 
     # compute pc_per_pix from redshift and pixel scale
     arcsec_per_pix = header_0['CDELT2']*3600 # "/pix
     pc_per_arcsec = (cosmo.arcsec_per_kpc_proper(z=z).value / 1e3) ** -1
     pc_per_pix = pc_per_arcsec * arcsec_per_pix
 
-    ### mask_type == 'inner':
-
     # find central pixel from SDSS ra and dec
-    wcs = WCS(header_0)
+    wcs = WCS(header_image)[0]
     center_coord = SkyCoord(ra, dec, unit="deg") 
     center_x, center_y = wcs.world_to_pixel(center_coord)
-
-    # generate a circular aperture
     center = PixCoord(center_x, center_y)
-    radius = 1.5 / (header_0['CDELT2']*3600)
-    aperture = CirclePixelRegion(center, radius)
 
-    # conver aperture to a mask and apply to the moment map
+    # generate an inner circular aperture with radius 1.5"
     # mode = 'exact' uses partial contribution from edge pixels to simulate a perfect circle
-    mask = aperture.to_mask(mode='exact')
+    radius = 1.5 / (header_image['CDELT2']*3600)
+    aperture = CirclePixelRegion(center, radius)
+    mask_inner = aperture.to_mask(mode='exact')
+    mask_inner = np.array(mask_inner.to_image(np.shape(cube[0,:,:])).data, dtype = float)
+    
+    # instead of using the anulus pixel region, subtract the fancy circle mask from the outer circle
+    # anulus method does not allow pixels to partially contribute to the inner and outer regions
+    
+    # generate an outer elliptical aperture according to the SDSS modelMag photometry
+    aperture = EllipsePixelRegion(center, r_a / (header_image['CDELT2']*3600), r_b / (header_image['CDELT2']*3600), phi * u.deg)
+    mask_total = aperture.to_mask()
+    mask_total = np.array(mask_outer.to_image(np.shape(cube[0,:,:])).data, dtype = float)
+    
+    # annular outer mask
+    mask_outer = mask_total - mask_inner
+    mask_outer[mask_outer < 0] = 0 # to avoid over-subtraction if inner radius is larger than r_b
 
-    # make mask an array with same dimensions as a cube slice
-    mask = np.array(mask.to_image(np.shape(moment_0)).data, dtype = float)
-
-    #print(len(moment_0[(moment_0>0) & (mask>0)]), len(moment_0[(moment_0>0) & (mask>0)])/len(moment_0[(mask>0)]))
-
-    ### mask_type == 'outer':
-
-    # generate an outer circular mask with same center
-    radius_outer = r_outer / (header_0['CDELT2']*3600)
-    aperture = CirclePixelRegion(center, radius_outer)
-    mask_outer = aperture.to_mask()
-
-    mask_outer = np.array(mask_outer.to_image(np.shape(moment_0)).data, dtype = float)
-    mask_outer = mask_outer - mask
-
-    #print(len(moment_0[(moment_0>0) & (mask_outer>0)]), len(moment_0[(moment_0>0) & (mask_outer>0)])/len(moment_0[(mask_outer>0)]))
-
-    f_inner = len(moment_0[(moment_0>0) & (mask>0)])/len(moment_0[(mask>0)])
+    f_inner = len(moment_0[(moment_0>0) & (mask_inner>0)])/len(moment_0[(mask_inner>0)])
     f_outer = len(moment_0[(moment_0>0) & (mask_outer>0)])/len(moment_0[(mask_outer>0)])
 
     return f_inner, f_outer
