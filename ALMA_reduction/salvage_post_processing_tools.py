@@ -826,9 +826,9 @@ def MH2_from_cube(ID, z, ra, dec, r_a, r_b, phi, a_CO = 4.35):
     M_H2_total = L_CO_total * a_CO
 
     # error on integrated intensity, following Brown et al. (2021), Equation (2)
-    M_H2_inner_err = (np.nanstd(spec_inner[~spectral_mask]) * pc_per_pix**2 * np.abs(header_image['CDELT3']/-1e3)) * a_CO * np.sqrt(len(spec_inner[~spectral_mask])) #* np.abs(header_image['CDELT3'])/1e3
-    M_H2_outer_err = (np.nanstd(spec_outer[~spectral_mask]) * pc_per_pix**2 * np.abs(header_image['CDELT3']/-1e3)) * a_CO * np.sqrt(len(spec_inner[~spectral_mask])) #* np.abs(header_image['CDELT3'])/1e3
-    M_H2_total_err = (np.nanstd(spec_total[~spectral_mask]) * pc_per_pix**2 * np.abs(header_image['CDELT3']/-1e3)) * a_CO * np.sqrt(len(spec_inner[~spectral_mask])) #* np.abs(header_image['CDELT3'])/1e3
+    M_H2_inner_err = (np.nanstd(spec_inner[~spectral_mask]) * pc_per_pix**2 * np.abs(header_image['CDELT3']/-1e3)) * a_CO * np.sqrt(len(spec_inner[spectral_mask])) #* np.abs(header_image['CDELT3'])/1e3
+    M_H2_outer_err = (np.nanstd(spec_outer[~spectral_mask]) * pc_per_pix**2 * np.abs(header_image['CDELT3']/-1e3)) * a_CO * np.sqrt(len(spec_inner[spectral_mask])) #* np.abs(header_image['CDELT3'])/1e3
+    M_H2_total_err = (np.nanstd(spec_total[~spectral_mask]) * pc_per_pix**2 * np.abs(header_image['CDELT3']/-1e3)) * a_CO * np.sqrt(len(spec_inner[spectral_mask])) #* np.abs(header_image['CDELT3'])/1e3
 
     if M_H2_inner < 0: M_H2_inner = 0
     if M_H2_outer < 0: M_H2_outer = 0
