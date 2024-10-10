@@ -330,7 +330,7 @@ def demo_PHANGS_moments_annuli(imagename, z, r_outer, ID):
     
     return
 
-def view_image(z, i):
+def view_image(i):
 
     # sdss image
 
@@ -358,7 +358,6 @@ def view_image(z, i):
     NORM = LogNorm(vmin=np.percentile(sdss[sdss>0], 1),vmax=np.percentile(sdss[sdss>0], 99.99))
     out = ax.imshow(sdss, origin = 'lower', cmap = 'gray_r', norm = NORM)
 
-    #plt.savefig(f'fancy_image_{z}.png', bbox_inches = 'tight', dpi = 200)
     plt.show()
     
     return
