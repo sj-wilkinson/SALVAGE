@@ -812,11 +812,35 @@ def MH2_from_cube(ID, z, ra, dec, r_a, r_b, phi, a_CO = 4.35):
     #smoothstack = stack.spectral_smooth(kernel)
     #smoothstack.quicklook(label = 'Total Integrated Spectrum (smoothed by 2x)')
 
+    
+    ### compute masses ###
+    
+    spectral_mask = (spectral_axis < (np.nanmax(spectral_axis) - (200 * u.km / u.s))) & (spectral_axis > (np.nanmin(spectral_axis) + (200 * u.km / u.s)))
+    
+    L_CO_inner = np.nansum(spec_inner[spectral_mask]) * pc_per_pix**2 * np.abs(header_image['CDELT3']/-1e3)
+    L_CO_outer = np.nansum(spec_outer[spectral_mask]) * pc_per_pix**2 * np.abs(header_image['CDELT3']/-1e3)
+    L_CO_total = np.nansum(spec_total[spectral_mask]) * pc_per_pix**2 * np.abs(header_image['CDELT3']/-1e3)
+    
+    M_H2_inner = L_CO_inner * a_CO
+    M_H2_outer = L_CO_outer * a_CO
+    M_H2_total = L_CO_total * a_CO
+
+    # error on integrated intensity, following Brown et al. (2021), Equation (2)
+    M_H2_inner_err = (np.nanstd(spec_inner[~spectral_mask]) * pc_per_pix**2 * np.abs(header_image['CDELT3']/-1e3)) * a_CO * np.sqrt(len(spec_inner[~spectral_mask])) #* np.abs(header_image['CDELT3'])/1e3
+    M_H2_outer_err = (np.nanstd(spec_outer[~spectral_mask]) * pc_per_pix**2 * np.abs(header_image['CDELT3']/-1e3)) * a_CO * np.sqrt(len(spec_inner[~spectral_mask])) #* np.abs(header_image['CDELT3'])/1e3
+    M_H2_total_err = (np.nanstd(spec_total[~spectral_mask]) * pc_per_pix**2 * np.abs(header_image['CDELT3']/-1e3)) * a_CO * np.sqrt(len(spec_inner[~spectral_mask])) #* np.abs(header_image['CDELT3'])/1e3
+
+    if M_H2_inner < 0: M_H2_inner = 0
+    if M_H2_outer < 0: M_H2_outer = 0
+    if M_H2_total < 0: M_H2_total = 0
+
+    ### visualize spectrum ###
+                                                                                                                                    
     fig, ax = plt.subplots(1,1,figsize = (8,5))
     
     ax.plot(spectral_axis, spec_inner, ds = 'steps-mid', label = 'Inner', color = 'orangered', alpha = 0.8, lw = 2)
     ax.plot(spectral_axis, spec_outer, ds = 'steps-mid', label = 'Outer', color = 'cornflowerblue', alpha = 0.8, lw = 2)
-    ax.plot(spectral_axis, spec_total, ds = 'steps-mid', label = 'Total', color = 'forestgreen', alpha = 0.8, lw = 2)
+    #ax.plot(spectral_axis, spec_total, ds = 'steps-mid', label = 'Total', color = 'forestgreen', alpha = 0.8, lw = 2)
 
     ax.legend(fancybox = True, loc = 'upper left', frameon = False)
 
@@ -839,37 +863,23 @@ def MH2_from_cube(ID, z, ra, dec, r_a, r_b, phi, a_CO = 4.35):
     ax.tick_params(axis = 'both', which = 'major', length = 7)
     ax.tick_params(axis = 'both', which = 'minor', length = 4)
 
-    ax.fill_between([np.nanmin(spec_total) - 0.05 * np.nanmax(spec_total), np.nanmax(spec_total) + 0.05 * np.nanmax(spec_total)], np.nanmin(spectral_axis).value, (np.nanmin(spectral_axis).value + 100), alpha = 0.4, hatch = '/', color = 'k')
-    ax.fill_between([np.nanmin(spec_total) - 0.05 * np.nanmax(spec_total), np.nanmax(spec_total) + 0.05 * np.nanmax(spec_total)], (np.nanmax(spectral_axis).value - 100), np.nanmax(spectral_axis).value, alpha = 0.4, hatch = '/', color = 'k')
+    ax.fill_betweenx([np.nanmin(spec_total) - 0.05 * np.nanmax(spec_total), np.nanmax(spec_total) + 0.05 * np.nanmax(spec_total)], np.nanmin(spectral_axis).value, (np.nanmin(spectral_axis).value + 200), alpha = 0.2, hatch = '/', color = 'k')
+    ax.fill_betweenx([np.nanmin(spec_total) - 0.05 * np.nanmax(spec_total), np.nanmax(spec_total) + 0.05 * np.nanmax(spec_total)], (np.nanmax(spectral_axis).value - 200), np.nanmax(spectral_axis).value, alpha = 0.2, hatch = '/', color = 'k')
+
+    #ax.fill_between([10, 20], np.nanmin(spectral_axis).value, (np.nanmin(spectral_axis).value + 250), alpha = 0.4, hatch = '/', color = 'k')
+    #ax.fill_between([0,100], np.nanmax(spectral_axis).value - 100, np.nanmax(spectral_axis).value, alpha = 0.4, hatch = '/', color = 'k')
     
     for axis in ['top','bottom','left','right']:
         ax.spines[axis].set_linewidth(1.)
     
-    ax.set_title(f'Integrated Spectra)')
-    
-    plt.show()
-    
+    ax.set_title(f'Integrated Spectra')
 
-    # compute masses
-    spectral_mask = (spectral_axis < (np.nanmax(spectral_axis) - (100 * u.km / u.s))) & (spectral_axis > (np.nanmin(spectral_axis) + (100 * u.km / u.s)))
+    ax.text(300, np.nanmax(spec_total) - 0.1 * np.nanmax(spec_total), f'n-sigma (inner): {M_H2_inner/M_H2_inner_err:.2f}\nn-sigma (outer): {M_H2_outer/M_H2_outer_err:.2f}')
     
-    L_CO_inner = np.nansum(spec_inner[spectral_mask]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
-    L_CO_outer = np.nansum(spec_outer[spectral_mask]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
-    L_CO_total = np.nansum(spec_total[spectral_mask]) * pc_per_pix**2 * header_image['CDELT3']/-1e3
-    
-    M_H2_inner = L_CO_inner * a_CO
-    M_H2_outer = L_CO_outer * a_CO
-    M_H2_total = L_CO_total * a_CO
-    
-    M_H2_inner_err = (np.nanstd(spec_inner[~spectral_mask]) * pc_per_pix**2 * (header_image['CDELT3']/-1e3)) * a_CO
-    M_H2_outer_err = (np.nanstd(spec_outer[~spectral_mask]) * pc_per_pix**2 * (header_image['CDELT3']/-1e3)) * a_CO
-    M_H2_total_err = (np.nanstd(spec_total[~spectral_mask]) * pc_per_pix**2 * (header_image['CDELT3']/-1e3)) * a_CO
-
-    if M_H2_inner < 0: M_H2_inner = 0
-    if M_H2_outer < 0: M_H2_outer = 0
-    if M_H2_total < 0: M_H2_total = 0
+    plt.show()                                                                                                                               
 
     return M_H2_inner, M_H2_outer, M_H2_total, M_H2_inner_err, M_H2_outer_err, M_H2_total_err
+    
     
 
 def MH2_from_cube_phys(ID, z, ra, dec, r_inner, r_outer, mask_type = 'total', a_CO = 4.35):
