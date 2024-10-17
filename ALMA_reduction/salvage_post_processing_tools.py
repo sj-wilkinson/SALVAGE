@@ -925,10 +925,11 @@ def identify_signal(spec, vel, nchan_hi, snr_hi, nchan_lo, snr_lo, expand_by_nch
     - rms:         Root mean square error of spectrum, calculated from extant 200 km/s of spectrum. 
     '''
 
-    # generate a window over which the flux will be measured
+    # generate a region over which the flux will be measured
     rms_mask = (vel < (np.nanmin(vel) + (200 * u.km / u.s))) | (vel > (np.nanmax(vel) - (200 * u.km / u.s)))                                              
     rms = np.nanstd(spec[rms_mask])
 
+    # mask of voxels I'm willing to include in the flux measurement
     mask = ~rms_mask & (spec>0)
 
     # compute SNR across the spectrum
@@ -936,7 +937,8 @@ def identify_signal(spec, vel, nchan_hi, snr_hi, nchan_lo, snr_lo, expand_by_nch
 
     # initialize core mask
     mask_core = snr > snr_hi
-    
+
+    # enforce nchan_hi contiguous voxels
     for iiter in range(nchan_hi-1):
         mask_core &= np.roll(mask_core, 1, 0)
     
@@ -947,7 +949,8 @@ def identify_signal(spec, vel, nchan_hi, snr_hi, nchan_lo, snr_lo, expand_by_nch
     
     # initialize wing mask
     mask_wing = snr > snr_lo
-    
+
+    # enforce nchan_lo contiguous voxels
     for iiter in range(nchan_lo-1):
         mask_wing &= np.roll(mask_wing, 1, 0)
     
@@ -957,9 +960,9 @@ def identify_signal(spec, vel, nchan_hi, snr_hi, nchan_lo, snr_lo, expand_by_nch
     mask_wing &= mask
 
     # dilate core mask inside wing mask
-    mask_signal = binary_dilation(
-        mask_core, iterations=0, mask=mask_wing)
+    mask_signal = binary_dilation(mask_core, iterations=0, mask=mask_wing)
 
+    # expand final mask by expand_by_nchan voxels (in each direction)
     if expand_by_nchan > 0:
 
         for iiter in range(expand_by_nchan):
