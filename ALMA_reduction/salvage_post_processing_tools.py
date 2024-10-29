@@ -922,7 +922,7 @@ def identify_signal(spec, vel, nchan_hi, snr_hi, nchan_lo, snr_lo, expand_by_nch
     _____________
     
     - mask_signal: Mask along spectral axis denoting which pixels should be included in flux measurements.
-    - rms:         Root mean square error of spectrum, calculated from extant 200 km/s of spectrum. 
+    - rms:         Root mean square error of spectrum, calculated from peripheral 200 km/s of spectrum. 
     '''
 
     # generate a region over which the flux will be measured
@@ -974,6 +974,284 @@ def identify_signal(spec, vel, nchan_hi, snr_hi, nchan_lo, snr_lo, expand_by_nch
     mask_signal &= mask
 
     return mask_signal, rms
+
+
+def MH2_from_cube_FWZI(ID, z, ra, dec, r_a, r_b, phi, a_CO = 4.35, visualize_spectra = True):
+
+    '''
+    Measures the molecular gas mass from ALMA CO(1-0) cube using Toby's full-width at zero intensity (FWZI) function)
+
+    Input Parameters:
+    ____________
+    
+    - ID:  SDSS objID of the target, used to import correct cube. [unitless]
+    - z:   SDSS spectroscopic redshift, used to compute expected line velocity and pc/arcsec conversion. [unitless]
+    - ra:  RA of SDSS fibre, used to extract mass from fibre location. [degrees]
+    - dec: Dec. of the SDSS fibre, used to extract mass from fibre location. [degrees]
+    - r_a: Semi-major axis of the model mag fit to SDSS r-band photmetry, used to generate total aperture. [arcsec]
+    - r_b: Semi-minor axis of the model mag fit to SDSS r-band photmetry, used to generate total aperture. [arcsec]
+    - phi: Orientation of the model mag fit to SDSS r-band photmetry, used to generate total aperture. [degrees]
+    - a_CO: alpha_CO conversion factor, CO(1-0) flux to total molecular gas mass, default 4.35. [Msun pc−2 (K km s−1)−1]
+    - visualize_spectra: option to skip plotting of the integrated spectra, default True.
+
+    Returns:
+    ____________
+    
+    - M_H2_inner: The measured molecular gas mass from central fibre aperture. [Msun]
+    - M_H2_outer: The measured molecular gas mass from annulus aperture between SDSS fibre and SDSS ModelMag outer limit. [Msun]
+    - M_H2_total: The measured molecular gas mass from central elliptical aperture defined by the SDSS ModelMag outer limit. [Msun]
+    - M_H2_inner_err: The error on the inner molecular gas measurement. [Msun]
+    - M_H2_outer_err: The error on the outer molecular gas measurement. [Msun]
+    - M_H2_total_err: The error on the total molecular gas measurement. [Msun]
+    '''
+
+    file = f'/arc/projects/salvage/ALMA_reduction/phangs_pipeline/imaging/{ID}/{ID}_12m_co10.fits'
+    header_image = pyfits.getheader(file)
+    
+    # import cube, convert to K
+    cube = SpectralCube.read(file, format='fits').to(u.K).with_spectral_unit(u.km/u.s, velocity_convention='radio', rest_value=(115.27120180 * u.GHz)/(1+z))
+    #cube = cube.downsample_axis(2, axis = 0)
+    spectral_axis = cube.spectral_axis
+
+    # replace nans with 0's, don't want them adding to the integrated spectra...
+    cube = cube.apply_numpy_function(np.nan_to_num, fill=0)
+
+    # velocity bin width
+    print(header_image['CDELT3'])
+    dv = header_image['CDELT3']/-1e3 #* 2 #(downsampled by 2x)
+    
+    # compute pc_per_pix from redshift and pixel scale
+    arcsec_per_pix = header_image['CDELT2']*3600 # "/pix
+    pc_per_arcsec = (cosmo.arcsec_per_kpc_proper(z=z).value / 1e3) ** -1
+    pc_per_pix = pc_per_arcsec * arcsec_per_pix
+
+    # find central pixel from SDSS ra and dec
+    wcs = WCS(header_image)[0]
+    center_coord = SkyCoord(ra, dec, unit="deg") 
+    center_x, center_y = wcs.world_to_pixel(center_coord)
+    center = PixCoord(center_x, center_y)
+
+    # generate an inner circular aperture with radius 1.5"
+    # mode = 'exact' uses partial contribution from edge pixels to simulate a perfect circle
+    radius = 1.5 / (header_image['CDELT2']*3600)
+    aperture = CirclePixelRegion(center, radius)
+    mask_inner = aperture.to_mask(mode='exact')
+    mask_inner = np.array(mask_inner.to_image(np.shape(cube[0,:,:])).data, dtype = float)
+    
+    # instead of using the anulus pixel region, subtract the fancy circle mask from the outer circle
+    # anulus method does not allow pixels to partially contribute to the inner and outer regions
+    
+    # generate an outer elliptical aperture according to the SDSS modelMag photometry
+    aperture = EllipsePixelRegion(center, r_a / (header_image['CDELT2']*3600), r_b / (header_image['CDELT2']*3600), phi * u.deg)
+    mask_total = aperture.to_mask()
+    mask_total = np.array(mask_total.to_image(np.shape(cube[0,:,:])).data, dtype = float)
+    
+    # annular outer mask
+    mask_outer = mask_total - mask_inner
+    mask_outer[mask_outer < 0] = 0 # to avoid over-subtraction if inner radius is larger than r_b
+    
+    # apply masks to cube
+    masked_cube_inner = cube * mask_inner
+    masked_cube_outer = cube * mask_outer
+    masked_cube_total = cube * mask_total
+
+    # integrate over the masked cubes' to extract spectra
+    spec_inner = np.nansum(masked_cube_inner, axis = (1,2))
+    spec_outer = np.nansum(masked_cube_outer, axis = (1,2))
+    spec_total = np.nansum(masked_cube_total, axis = (1,2))
+
+    if dv<0:
+        #dv must be positive for FWZI to work
+        spectral_axis = spectral_axis[::-1].copy()
+        spec_inner    = spec_inner[::-1].copy()
+        spec_outer    = spec_outer[::-1].copy()
+        spec_total    = spec_total[::-1].copy()
+        dv = np.abs(dv)
+
+    # compute RMS from outer regions of the spectra
+    rms_mask = (spectral_axis < (np.nanmin(spectral_axis) + (200 * u.km / u.s))) | (spectral_axis > (np.nanmax(spectral_axis) - (200 * u.km / u.s))) 
+
+    rms_inner = rms = np.nanstd(spec_inner[rms_mask])
+    rms_outer = rms = np.nanstd(spec_outer[rms_mask])
+    rms_total = rms = np.nanstd(spec_total[rms_mask])
+
+    # apply VERTICO FWZI method
+    ilo_inner, ihi_inner = idx_fwzi(spec_inner[~rms_mask])
+    ilo_outer, ihi_outer = idx_fwzi_3peak(spec_outer[~rms_mask])
+    ilo_total, ihi_total = idx_fwzi(spec_total[~rms_mask])
+
+    mask_signal_inner = (spectral_axis > spectral_axis[~rms_mask][ilo_inner]) & (spectral_axis < spectral_axis[~rms_mask][ihi_inner])
+    mask_signal_outer = (spectral_axis > spectral_axis[~rms_mask][ilo_outer]) & (spectral_axis < spectral_axis[~rms_mask][ihi_outer])
+    mask_signal_total = (spectral_axis > spectral_axis[~rms_mask][ilo_total]) & (spectral_axis < spectral_axis[~rms_mask][ihi_total])
+
+    # measure molecular gas masses based on the flux of identified CO signal
+    M_H2_inner = np.nansum(spec_inner[mask_signal_inner]) * dv * pc_per_pix**2  * a_CO
+    M_H2_outer = np.nansum(spec_outer[mask_signal_outer]) * dv * pc_per_pix**2  * a_CO
+    M_H2_total = np.nansum(spec_total[mask_signal_total]) * dv * pc_per_pix**2  * a_CO
+
+    # measure MH2 error via Equation (2) in Brown et al. (2021)
+    M_H2_inner_err = rms_inner * dv * np.sqrt(len(spec_inner[mask_signal_inner])) * pc_per_pix**2 * a_CO
+    M_H2_outer_err = rms_outer * dv * np.sqrt(len(spec_outer[mask_signal_outer])) * pc_per_pix**2 * a_CO
+    M_H2_total_err = rms_total * dv * np.sqrt(len(spec_total[mask_signal_total])) * pc_per_pix**2 * a_CO
+
+    ### visualize spectrum ###
+
+    if visualize_spectra:
+                                                                                                                                    
+        fig, ax = plt.subplots(1,1,figsize = (8,5))
+        
+        ax.plot(spectral_axis, spec_inner, ds = 'steps-mid', label = 'Inner', color = 'orangered', alpha = 0.8, lw = 2)
+        ax.plot(spectral_axis, spec_outer, ds = 'steps-mid', label = 'Outer', color = 'cornflowerblue', alpha = 0.8, lw = 2)
+        #ax.plot(spectral_axis, spec_total, ds = 'steps-mid', label = 'Total', color = 'forestgreen', alpha = 0.8, lw = 2)
+    
+        ax.legend(fancybox = True, loc = 'upper left', frameon = False)
+    
+        ax.set_title('Integrated Spectra')
+        ax.set_xlabel('Velocity [km/s]', fontsize = 11)
+        ax.set_ylabel('Brightness Temperature [K]', fontsize = 11)
+        
+        ax.set_xticks(np.arange(-600,800,200))
+        ax.set_xticks(np.arange(-600,800,100), minor = True)
+        ax.set_yticks(np.arange(np.round(np.nanmin(spec_total), -1), np.round(np.nanmax(spec_total), -1)+10,10))
+        ax.set_yticks(np.arange(np.round(np.nanmin(spec_total), -1), np.round(np.nanmax(spec_total), -1)+5,5), minor = True)
+        
+        ax.set_ylim(np.nanmin(spec_total) - 0.05 * np.nanmax(spec_total),np.nanmax(spec_total) + 0.05 * np.nanmax(spec_total))
+        
+        ax.tick_params('both', direction='in', which = 'both', top = True, right = True, width = 1., labelsize = 11)
+        ax.tick_params(axis = 'both', which = 'major', length = 7)
+        ax.tick_params(axis = 'both', which = 'minor', length = 4)
+    
+        ax.fill_betweenx([np.nanmin(spec_total) - 0.05 * np.nanmax(spec_total), np.nanmax(spec_total) + 0.05 * np.nanmax(spec_total)], np.nanmin(spectral_axis).value, np.nanmin(spectral_axis).value + 200, alpha = 0.2, hatch = '/', color = 'k')
+        ax.fill_betweenx([np.nanmin(spec_total) - 0.05 * np.nanmax(spec_total), np.nanmax(spec_total) + 0.05 * np.nanmax(spec_total)], np.nanmax(spectral_axis).value - 200, np.nanmax(spectral_axis).value, alpha = 0.2, hatch = '/', color = 'k')
+    
+        spec_to_plot_inner = spec_inner.copy()
+        spec_to_plot_inner[~mask_signal_inner] = 0
+    
+        spec_to_plot_outer = spec_outer.copy()
+        spec_to_plot_outer[~mask_signal_outer] = 0
+    
+        ax.fill_between(spectral_axis, [0 for i in spec_inner], spec_to_plot_inner, step = 'mid', color = 'orangered', alpha = 0.3)
+        ax.fill_between(spectral_axis, [0 for i in spec_outer], spec_to_plot_outer, step = 'mid', color = 'cornflowerblue', alpha = 0.3)  
+        
+        for axis in ['top','bottom','left','right']:
+            ax.spines[axis].set_linewidth(1.)
+        
+        ax.set_title(f'Integrated Spectra')
+    
+        ax.text(300, np.nanmax(spec_total) - 0.1 * np.nanmax(spec_total), f'n-sigma (inner): {M_H2_inner/M_H2_inner_err:.2f}\nn-sigma (outer): {M_H2_outer/M_H2_outer_err:.2f}')
+        
+        plt.show()     
+
+    print(spectral_axis[~rms_mask][ilo_inner], spectral_axis[~rms_mask][ihi_inner])
+    
+    return M_H2_inner, M_H2_outer, M_H2_total, M_H2_inner_err, M_H2_outer_err, M_H2_total_err
+
+
+def idx_fwzi(data):
+    """
+    Compute indices at the true full width at zero intensity (i.e. the continuum level)
+    of the spectrum.
+
+    This makes no assumptions about the shape of the spectrum. It determines the
+    index of the highest flux value, and then calculates indices at that base of
+    the feature where intensity drops below 0.
+
+    Parameters
+    ----------
+    data :
+        The flux array over which the width will be calculated."""
+
+    # Find the index of the maximum peak value
+    peak_ind = list(np.where(data == np.nanmax(data))[0])
+
+    # split the result into a high and low spectrum
+    split = np.split(data, peak_ind)
+
+    if np.nanmin(split[0]) > 0:
+        ihi = 0
+    else:
+        ihi = (split[0].shape - np.argmax(split[0][::-1] < 0) - 1)[0]
+
+    if np.nanmin(split[1]) > 0:
+        ilo = len(data)-1
+    else:
+        #  len of lower portion (split point idx) plus the last point at which the upper half of the spec is less than 0
+        ilo = (split[0].shape + np.argmax(split[1] < 0) - 1)[0] + 1
+
+    return ilo, ihi
+
+
+def idx_fwzi_3peak(data):
+    """
+    Compute indices at the true full width at zero intensity (i.e. the continuum level)
+    of the spectrum.
+
+    This makes no assumptions about the shape of the spectrum. It determines the
+    index of the highest flux value, and then calculates indices at that base of
+    the feature where intensity drops below 0.
+
+    Parameters
+    ----------
+    data :
+        The flux array over which the width will be calculated."""
+
+    # Find the index of the maximum peak value
+    peak_ind1 = list(np.where(data == np.nanmax(data))[0])
+
+    # split the result into a high and low spectrum
+    split = np.split(data, peak_ind1)
+    
+    if np.nanmin(split[0]) > 0:
+        ihi1 = 0
+    else:
+        ihi1 = (split[0].shape - np.argmax(split[0][::-1] < 0) - 1)[0]
+
+    if np.nanmin(split[1]) > 0:
+        ilo1 = len(data)-1
+    else:
+        #  len of lower portion (split point idx) plus the last point at which the upper half of the spec is less than 0
+        ilo1 = (split[0].shape + np.argmax(split[1] < 0) - 1)[0] + 1
+
+
+    # Find the index of the second maximum peak value
+    peak_ind2 = list(np.where(data == np.nanmax(data[data!=data[peak_ind1]]))[0])
+
+    # split the result into a high and low spectrum
+    split = np.split(data, peak_ind2)
+    
+    if np.nanmin(split[0]) > 0:
+        ihi2 = 0
+    else:
+        ihi2 = (split[0].shape - np.argmax(split[0][::-1] < 0) - 1)[0]
+
+    if np.nanmin(split[1]) > 0:
+        ilo2 = len(data)-1
+    else:
+        #  len of lower portion (split point idx) plus the last point at which the upper half of the spec is less than 0
+        ilo2 = (split[0].shape + np.argmax(split[1] < 0) - 1)[0] + 1
+
+     # Find the index of the third maximum peak value
+    peak_ind3 = list(np.where(data == np.nanmax(data[(data!=data[peak_ind1]) & (data!=data[peak_ind2])]))[0])
+
+    # split the result into a high and low spectrum
+    split = np.split(data, peak_ind3)
+    
+    if np.nanmin(split[0]) > 0:
+        ihi3 = 0
+    else:
+        ihi3 = (split[0].shape - np.argmax(split[0][::-1] < 0) - 1)[0]
+
+    if np.nanmin(split[1]) > 0:
+        ilo3 = len(data)-1
+    else:
+        #  len of lower portion (split point idx) plus the last point at which the upper half of the spec is less than 0
+        ilo3 = (split[0].shape + np.argmax(split[1] < 0) - 1)[0] + 1
+
+    ilo = np.max([ilo1,ilo2,ilo3])
+    ihi = np.min([ihi1,ihi2,ihi3])
+
+    return ilo, ihi
+
 
 
 def MH2_from_cube_iter(ID, z, ra, dec, r_a, r_b, phi, a_CO = 4.35):
