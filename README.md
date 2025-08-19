@@ -1,3 +1,5 @@
+# The SDSS-ALMA Legacy-Value Archival Gas Exploration (SALVAGE) Project Repository #
+
 <a name="readme-top"></a>
 <!-- PROJECT LOGO -->
 <br />
@@ -10,7 +12,7 @@
 
 
 
-### The SDSS-ALMA Legacy-Value Archival Gas Exploration (SALVAGE) Project Repository ###
+
 
 ## Introduction ##
 
