@@ -3,7 +3,7 @@
 <br />
 <div align="left">
   <a href="https://github.com/sj-wilkinson/SALVAGE">
-    <img src="SALVAGE_logo.png" alt="Logo" width="800" height="400">
+    <img src="SALVAGE.png" alt="Logo" width="800" height="400">
   </a>
   </p>
 </div>
