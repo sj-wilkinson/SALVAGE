@@ -15,10 +15,10 @@
 <details>
   <summary>Table of Contents</summary>
   <ol>
-    <li><a href="#introduction">Introductione</a></li>
+    <li><a href="#introduction">Introduction</a></li>
     <li><a href="#description">Description</a>
-    <li><a href="#data-access">Data Accessn</a>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
+    <li><a href="#data-access">Data Access</a>
+    <li><a href="#acknowledgments">Acknowledegments</a></li>
     <li><a href="#contact">Contact</a></li>
   </ol>
 </details>
@@ -34,7 +34,7 @@ SALVAGE is a heterogeneous but complete sampling of galaxies selected from SDSS 
 
 The reduced cubes, moment maps, and higher-order products can be found [here](https://www.canfar.net/storage/vault/list/AstroDataCitationDOI/CISTI.CANFAR/25.0077/data).
 
-## Acknowlegments ##
+## Acknowlegements ##
 
 If you use our data products or code, please cite Wilkinson et al. (2025, submitted to MNRAS).
 
