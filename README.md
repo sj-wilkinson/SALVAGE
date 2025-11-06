@@ -30,15 +30,6 @@ The SDSS-ALMA Legacy-Value Archival Gas Exploration (SALVAGE) dataset is a heter
 
 ## Respository Structure ##
 
-This repository is comprised of 3 parts:
-
-/ALMA_reduction/ hosts the reduction pipeline used to download, calibrate, and image the cubes on the CANFAR science platform.
-
-/environments/ is a copy of the the environment used
-
-/tutorial/ includes a notebook illustrating how to access and start using SALVAGE data.
-
-
 This repository is organized as follows:
 
 | Directory | Description |
@@ -51,7 +42,7 @@ This repository is organized as follows:
 
 The reduced cubes, moment maps, and derived products can be found on the CANFAR data vault [here](https://www.canfar.net/storage/vault/list/AstroDataCitationDOI/CISTI.CANFAR/25.0077/data).
 
-For more details, see the Accessing Data section of the [tutorial notebook](tutorial/ and the README file on the public repository.
+For more details, see the Accessing Data section of the [tutorial notebook](tutorial/) and the README file on the public repository.
 
 ## Acknowledgements ##
 
