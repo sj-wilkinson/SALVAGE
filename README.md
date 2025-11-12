@@ -48,7 +48,7 @@ For more details, see the Accessing Data section of the [tutorial notebook](tuto
 
 If you use SALVAGE data products or code, please cite [Wilkinson et al. (2025)](https://ui.adsabs.harvard.edu/abs/2025arXiv251106775W/abstract).
 
-You may also wish to cite [Leroy et al. (2022)](https://ui.adsabs.harvard.edu/abs/2021ApJS..255...19L/abstract) for use of the PHANGS-ALMA pipeline in the image processing.
+You may also wish to cite [Leroy et al. (2021)](https://ui.adsabs.harvard.edu/abs/2021ApJS..255...19L/abstract) for use of the PHANGS-ALMA pipeline in the image processing.
 
 ## Contact ##
 
